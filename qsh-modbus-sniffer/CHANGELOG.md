@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.2.0
+
+- **Reg 45**: Remapped from "Discharge Gas Temp" to "DHW Cylinder Temp" (CONFIRMED from 2026-02-18 DHW heating cycle — 52–55°C range consistent with cylinder storage)
+- **Regs 0/1**: Annotated as unresolved — always {0,0} during both space heat and DHW; may be write-once demand latch whose transition was not captured
+- **Reg 92**: Added annotation — always 4 across both modes; likely operating mode flag, pending transition capture
+- Wrapped TCP keepalive tuning (TCP_KEEPIDLE/INTVL/CNT) in try/except AttributeError for platform safety
+- Changed watchdog log interval from 60s to 5 minutes with frame count reporting
+- Updated socket timeout log message for consistency
+
 ## 4.1.1
 
 - Fixed half-open TCP socket hang: recv() would block indefinitely when the Waveshare gateway connection dropped silently, causing hours of undetected data loss
