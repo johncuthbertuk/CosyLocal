@@ -122,8 +122,9 @@ REGISTER_NAMES = {
     43: {"name": "T8 Liquid",            "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # NAMED: AP mode label. Flow temperature (secondary sensor?)
     44: {"name": "T9 Flow Temp",         "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # STATISTICAL: Only register >60°C (max 84.1°C); r=0.922 vs flow temp; mean 7.6°C above condensing temp. AP label: "T10 Discharge"
-    45: {"name": "Discharge Gas Temp",   "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
+    # CONFIRMED: During DHW heating cycle (2026-02-18 06:30–08:21), reg 45 read 52.4°C at 08:11,
+    # rose to 54.4°C at 08:15 — consistent with DHW cylinder being heated toward setpoint.
+    45: {"name": "DHW Cylinder Temp",    "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
     # CONFIRMED: target flow temperature setpoint (hub → outdoor)
     91: {"name": "Target Flow Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:target",               "class": "temperature"},
 
@@ -169,6 +170,12 @@ REGISTER_NAMES = {
     66: {"name": "Operating Mode",       "scale": 1,    "unit": "",      "icon": "mdi:state-machine",        "class": None},
 
     # --- Hub control registers ---
+    # reg 0, reg 1: written {0,0} every cycle during both space heat and DHW.
+    # Never observed non-zero. May be write-once demand latch (transition not yet captured)
+    # or heartbeat. Do not map until HW start/end transitions are observed.
+    # reg 92: always 4 in all captured writes (space heat and DHW active).
+    # Likely operating mode flag. Value may differ at HW start/stop transition.
+    # Do not promote to CONFIRMED until transition capture available.
     92: {"name": "Mode Demand",          "scale": 1,    "unit": "",      "icon": "mdi:thermostat",           "class": None},
     210:{"name": "Status Register",      "scale": 1,    "unit": "",      "icon": "mdi:information",          "class": None},
 }
@@ -771,9 +778,12 @@ class ModbusSniffer:
 
                 # TCP keepalive to detect half-open connections (~60s worst case)
                 self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 30)
-                self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-                self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+                try:
+                    self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 30)
+                    self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+                    self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+                except AttributeError:
+                    logging.warning("TCP keepalive tuning not available on this platform")
 
                 # Recv timeout: hub sends every ~2.5s, 30s silence = dead connection
                 self.socket.settimeout(self.config.get("recv_timeout", 30))
@@ -806,6 +816,7 @@ class ModbusSniffer:
 
         last_recv_time = time.time()
         last_watchdog_log = time.time()
+        watchdog_frame_count = 0
 
         while self.running:
             try:
@@ -819,6 +830,7 @@ class ModbusSniffer:
 
                 now = time.time()
                 last_recv_time = now
+                watchdog_frame_count += 1
                 logging.debug(f"recv {len(data)} bytes: {data.hex()}")
                 self._process_bytes(data, now)
 
@@ -832,18 +844,17 @@ class ModbusSniffer:
                     self.last_map_save = now
                     self._log_stats()
 
-                # Watchdog: confirm recv loop is alive
-                if now - last_watchdog_log >= 60:
-                    ago = now - last_recv_time
-                    logging.info(f"Recv loop alive — last frame {ago:.0f}s ago")
+                # Watchdog: confirm recv loop is alive every 5 minutes
+                if now - last_watchdog_log >= 300:
+                    logging.info(f"Watchdog: sniffer active, {watchdog_frame_count} frames received in last 5 min")
                     last_watchdog_log = now
+                    watchdog_frame_count = 0
 
             except socket.timeout:
                 # Hub sends every ~2.5s; 30s silence means connection is dead
                 if self.buffer:
                     self._try_parse_frame(time.time())
-                ago = time.time() - last_recv_time
-                logging.warning(f"Recv timeout ({ago:.0f}s no data) — reconnecting")
+                logging.warning("Socket timeout — no data for 30s, reconnecting")
                 if not self.connect():
                     break
                 last_recv_time = time.time()
