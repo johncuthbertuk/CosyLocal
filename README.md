@@ -26,12 +26,12 @@ Registers are published as `sensor.qsh_modbus_sniffer_*` entities. See [identifi
 | Register | Name | Scale | Unit | Confidence |
 |----------|------|-------|------|------------|
 | 27 | Electrical Power In | ×1 | W | CONFIRMED (r=0.999 vs Shelly EM) |
-| 29 | Flow Temp | ×0.1 | °C | CONFIRMED |
-| 30 | Return Temp | ×0.1 | °C | CONFIRMED |
+| 29 | HP LWT | ×0.1 | °C | CONFIRMED |
+| 30 | Condenser Temp | ×0.1 | °C | REVISED |
 | 36 | T1 External Temp | ×0.1 | °C | CONFIRMED (r=1.000 vs API) |
 | 38 | Internal Unit Temp | ×0.1 | °C | STATISTICAL |
 | 39 | Outdoor Ambient Temp | ×0.1 | °C | STATISTICAL |
-| 40 | Return Water Temp | ×0.1 | °C | STATISTICAL (r=0.950 vs flow) |
+| 40 | System Return Temp | ×0.1 | °C | CONFIRMED (tracks Shelly return) |
 | 45 | Discharge Gas Temp | ×0.1 | °C | STATISTICAL (r=0.922 vs flow) |
 | 47 | Flow Rate | ×0.01 | l/min | NAMED |
 | 50 | Reported COP | ×0.01 | — | STATISTICAL (mean 4.23) |

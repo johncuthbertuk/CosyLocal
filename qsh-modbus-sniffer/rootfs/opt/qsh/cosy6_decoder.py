@@ -102,10 +102,11 @@ ALL_REGISTERS = set(range(19, 53)) | set(range(53, 81)) | {210} | set(range(91, 
 # =============================================================================
 REGISTER_NAMES = {
     # --- Temperatures (raw × 0.1 = °C) ---
-    # CONFIRMED: r=0.999 vs flow temp sensor (n=1206)
-    29: {"name": "Flow Temp",            "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # CONFIRMED: correlates with return pipe sensor
-    30: {"name": "Return Temp",          "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # CONFIRMED: r=0.999 vs flow temp sensor (n=1206). Reads 2–4°C above system flow during steady state — this is the HP outlet before volumiser mixing.
+    29: {"name": "HP LWT",               "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
+    # REVISED: Condenser plate / refrigerant-side temp — NOT a water circuit temperature.
+    # Reads 40°C when HP is off (retained heat), drops to 30°C during operation. Inverts vs reg 40 during steady state.
+    30: {"name": "Condenser Temp",       "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # CONFIRMED: r=1.000 vs Octopus API outdoor_temperature (n=402)
     36: {"name": "T1 External Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:home-thermometer",     "class": "temperature"},
     # NAMED: AP mode label. Range 21-37°C suggests indoor/room sensor.
@@ -114,8 +115,8 @@ REGISTER_NAMES = {
     38: {"name": "Internal Unit Temp",   "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # STATISTICAL: Range −5.5–17.4°C consistent with UK ambient. AP label: "Evaporator Temp"
     39: {"name": "Outdoor Ambient Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-low",      "class": "temperature"},
-    # STATISTICAL: r=0.950 vs flow temp; mean offset 3.72°C matches system ΔT. AP label: "T5 Return Temp"
-    40: {"name": "Return Water Temp",    "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # CONFIRMED: Tracks Shelly return within −0.4°C during stable flow. This is the actual system return (EWT). AP label: "T5 Return Temp"
+    40: {"name": "System Return Temp",   "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # NAMED: AP mode label. Compressor sump temperature
     41: {"name": "T6 Sump",              "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # NAMED: AP mode label. Liquid line temperature
@@ -452,11 +453,11 @@ class OperatingStateDetector:
 
         r19 = registers.get(19, 0)
         r25 = registers.get(25, 0)
-        r29 = to_signed(registers.get(29, 0))
-        r30 = to_signed(registers.get(30, 0))
+        r29 = to_signed(registers.get(29, 0))   # HP LWT (condenser outlet)
+        r30 = to_signed(registers.get(30, 0))   # Condenser temp (refrigerant-side)
         r57 = to_signed(registers.get(57, 0))
         r92 = registers.get(92, 0)
-        delta = r29 - r30
+        delta = r29 - r30  # LWT vs condenser — inverts during defrost
 
         if r19 == 0 and r25 == 0:
             new_state = "OFF"
