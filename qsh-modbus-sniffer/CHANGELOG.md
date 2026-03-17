@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.3.0
+
+- **Reg 29**: Renamed "Flow Temp" → "HP LWT" — condenser outlet leaving water temp; reads 2–4°C above system flow before volumiser mixing
+- **Reg 30**: Renamed "Return Temp" → "Condenser Temp" — condenser plate / refrigerant-side temp, NOT a water circuit measurement. Reads 40°C when off (retained heat), drops during operation, inverts vs reg 40
+- **Reg 40**: Renamed "Return Water Temp" → "System Return Temp" — actual system EWT; tracks Shelly return within −0.4°C. Upgraded from STATISTICAL to CONFIRMED
+
 ## 4.2.0
 
 - **Reg 45**: Remapped from "Discharge Gas Temp" to "DHW Cylinder Temp" (CONFIRMED from 2026-02-18 DHW heating cycle — 52–55°C range consistent with cylinder storage)
