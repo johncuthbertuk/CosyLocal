@@ -84,8 +84,14 @@ FUNCTION_CODES = {
 
 # Registers that can carry negative values (temperatures, offsets, timers).
 SIGNED_REGISTERS = {
-    29, 30, 32, 36, 37, 38, 39, 40, 41, 43, 44, 45, 50,
-    53, 54, 55, 56, 57, 91,
+    19,                                  # Compressor frequency
+    24,                                  # Suction pressure
+    29, 30,                              # Flow temp, return temp
+    32,                                  # V1 heating valve
+    36, 37, 38, 39,                      # OAT, indoor ambient, suction line, outdoor coil
+    40, 41, 43, 44, 45,                  # Condenser outlet, evap inlet, liquid, condenser mid, shell
+    50, 53, 55, 56, 57,                  # Unknown 50, DHW, evaporator, discharge, defrost accum
+    91,                                  # Target flow temp
 }
 
 # All known register addresses from the polling cycle
@@ -101,84 +107,128 @@ ALL_REGISTERS = set(range(19, 53)) | set(range(53, 81)) | {210} | set(range(91, 
 #   UNCONFIRMED = behaviour observed but identity not proven
 # =============================================================================
 REGISTER_NAMES = {
-    # --- Temperatures (raw × 0.1 = °C) ---
-    # CONFIRMED: r=0.999 vs flow temp sensor (n=1206). Reads 2–4°C above system flow during steady state — this is the HP outlet before volumiser mixing.
-    29: {"name": "HP LWT",               "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # REVISED: Condenser plate / refrigerant-side temp — NOT a water circuit temperature.
-    # Reads 40°C when HP is off (retained heat), drops to 30°C during operation. Inverts vs reg 40 during steady state.
-    30: {"name": "Condenser Temp",       "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # CONFIRMED: r=1.000 vs Octopus API outdoor_temperature (n=402)
-    36: {"name": "T1 External Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:home-thermometer",     "class": "temperature"},
-    # NAMED: AP mode label. Range 21-37°C suggests indoor/room sensor.
-    37: {"name": "T2 Intermediate",      "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # STATISTICAL: Tracks outdoor ambient +5°C offset (r=0.953 vs reg_39) — enclosure heat from inverter/compressor. AP label: "T3 Suction"
-    38: {"name": "Internal Unit Temp",   "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # STATISTICAL: Range −5.5–17.4°C consistent with UK ambient. AP label: "Evaporator Temp"
-    39: {"name": "Outdoor Ambient Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-low",      "class": "temperature"},
-    # CONFIRMED: Tracks Shelly return within −0.4°C during stable flow. This is the actual system return (EWT). AP label: "T5 Return Temp"
-    40: {"name": "System Return Temp",   "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # NAMED: AP mode label. Compressor sump temperature
-    41: {"name": "T6 Sump",              "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # NAMED: AP mode label. Liquid line temperature
-    43: {"name": "T8 Liquid",            "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # NAMED: AP mode label. Flow temperature (secondary sensor?)
-    44: {"name": "T9 Flow Temp",         "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # CONFIRMED: During DHW heating cycle (2026-02-18 06:30–08:21), reg 45 read 52.4°C at 08:11,
-    # rose to 54.4°C at 08:15 — consistent with DHW cylinder being heated toward setpoint.
-    45: {"name": "DHW Cylinder Temp",    "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # CONFIRMED: target flow temperature setpoint (hub → outdoor)
-    91: {"name": "Target Flow Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:target",               "class": "temperature"},
-
-    # --- Pressures (raw × 0.01 = bar) ---
-    48: {"name": "Discharge Pressure",   "scale": 0.01, "unit": "bar",   "icon": "mdi:gauge-full",           "class": None},
-    # STATISTICAL: Range 2.75–5.97 (mean 4.23) consistent with COP; negative correlation with flow temp. Previously "Suction Pressure"
-    50: {"name": "Reported COP",         "scale": 0.01, "unit": "",      "icon": "mdi:gauge",                "class": None},
-
     # --- Compressor ---
-    # STATISTICAL: Exact 0–100 range
-    51: {"name": "Compressor Speed",     "scale": 1,    "unit": "%",     "icon": "mdi:speedometer",          "class": None},
-    # STATISTICAL: Raw 0–600 = 0–60 Hz; r=0.708 vs compressor speed %
-    53: {"name": "Compressor Frequency", "scale": 0.1,  "unit": "Hz",    "icon": "mdi:sine-wave",            "class": "frequency"},
+    # CONFIRMED (defrost validated): 32-34 Hz steady, stops during defrost, ramps 59-64 Hz at recovery.
+    # Scale ×0.1 confirmed by physics: raw 323-338 → 32.3-33.8 Hz (scroll compressor 20-80 Hz range).
+    19: {"name": "Compressor Frequency",  "scale": 0.1,  "unit": "Hz",    "icon": "mdi:sine-wave",            "class": "frequency"},
 
-    # --- Flow rate (raw × 0.01 = l/min) ---
-    # NAMED: Sika VVX20 flow meter built into unit
-    47: {"name": "Flow Rate",            "scale": 0.01, "unit": "l/min", "icon": "mdi:water-pump",           "class": None},
+    # --- Temperatures (raw × 0.1 = °C) ---
+    # CONFIRMED: r=0.999 vs flow temp sensor (n=1206)
+    29: {"name": "Flow Temp",             "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
+    # CONFIRMED: correlates with return pipe sensor
+    30: {"name": "Return Temp",           "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # CONFIRMED: r=1.000 vs Octopus API outdoor_temperature (n=402)
+    36: {"name": "OAT External",          "scale": 0.1,  "unit": "°C",    "icon": "mdi:home-thermometer",     "class": "temperature"},
+    # NAMED (AP mode T2): Range 22-29°C, indoor ambient.
+    37: {"name": "Indoor Ambient",        "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # NAMED (AP mode T3): Suction line temp. Wide range (-13 to +27°C), signed.
+    38: {"name": "Suction Line Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # CONFIRMED (defrost validated): -15 to +4°C range. Swings during defrost.
+    # Previously labelled "Evaporator Temp" but R55 is the actual evap coil sensor.
+    # Tracks below outdoor — likely outdoor coil air temp or calculated evaporating temp.
+    39: {"name": "Outdoor Coil Air Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-low",      "class": "temperature"},
+    # NAMED (AP mode T5): Water return path, always below flow temp. 22-38°C.
+    40: {"name": "Condenser Outlet Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # CONFIRMED (defrost validated): Goes to -10°C during defrost. Refrigerant at EEV outlet.
+    # Cross-checks: close to R290 sat at R24 suction pressure. Superheat = R55 - R41.
+    41: {"name": "Evaporator Inlet Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # NAMED (AP mode T8): Liquid line temp, 2-43°C range. Dynamic during defrost.
+    43: {"name": "Liquid Line Temp",      "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # NAMED (AP mode T9): Secondary flow temp sensor, 38-40°C. Tracks R29.
+    44: {"name": "Condenser Mid Temp",    "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
+    # CONFIRMED (defrost validated): 52-54°C steady, drops 18°C during defrost.
+    # Shell > discharge temp expected (motor heat).
+    45: {"name": "Compressor Shell Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
+    # CONFIRMED (defrost validated, R290 cross-check): Primary frost signal.
+    # Steady state 5.8-7.8°C. Drops to 0°C at defrost trigger.
+    # Spikes to 37-55°C during hot gas defrost, decays as ice melts.
+    # R290 sat at R24 suction pressure (608 kPa) = 4.7°C → superheat 2.8°C. Closed.
+    55: {"name": "Evaporator Temp",       "scale": 0.1,  "unit": "°C",    "icon": "mdi:snowflake-thermometer", "class": "temperature"},
+    # CONFIRMED (defrost validated): 38-41°C steady, drops to -3°C, spikes to 51°C during defrost.
+    56: {"name": "Discharge Temp",        "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
+    # CONFIRMED: target flow temperature setpoint (hub → outdoor)
+    91: {"name": "Target Flow Temp",      "scale": 0.1,  "unit": "°C",    "icon": "mdi:target",               "class": "temperature"},
 
-    # --- Valve positions / percentages (raw × 0.1 = %) ---
-    32: {"name": "V1 Heating",           "scale": 0.1,  "unit": "%",     "icon": "mdi:valve",                "class": None},
-    34: {"name": "V3 Defrost",           "scale": 0.1,  "unit": "%",     "icon": "mdi:snowflake-melt",       "class": None},
-    35: {"name": "V4 Inverter",          "scale": 0.1,  "unit": "%",     "icon": "mdi:sine-wave",            "class": None},
+    # --- Pressures ---
+    # CONFIRMED (defrost validated, R290 cross-check):
+    # Steady 608 kPa (×0.1), drops to 480 kPa at defrost. R290 sat at 480 kPa = 0°C matches R55.
+    24: {"name": "Suction Pressure",      "scale": 0.1,  "unit": "kPa",   "icon": "mdi:gauge",                "class": "pressure"},
+    # UNCONFIRMED: Defrost-dynamic — drops from ~12 to ~3.5, spikes to 16.4.
+    # Discharge pressure hypothesis plausible (12 bar → R290 sat ~28°C) but not closed.
+    # Needs OAT sweep correlation with R56 to confirm. Published raw until confirmed.
+    48: {"name": "Unknown 48",            "scale": 0.01, "unit": "bar",   "icon": "mdi:help-circle",          "class": None},
+    # UNCONFIRMED: 0-8.5 range, relatively stable during defrost. May not be a pressure.
+    50: {"name": "Unknown 50",            "scale": 0.01, "unit": "bar",   "icon": "mdi:help-circle",          "class": None},
+
+    # --- Flow Rate ---
+    # NAMED (AP mode, Sika VVX20 flow meter): 0-15.65 l/min.
+    # Stable during defrost (slight rise) — consistent with circulation pump continuing.
+    47: {"name": "Flow Rate",             "scale": 0.01, "unit": "l/min", "icon": "mdi:water-pump",           "class": None},
+
+    # --- Valve Positions ---
+    # CONFIRMED (defrost validated): Valve position during heating. Scale ×0.1 confirmed
+    # (Feb raw 240-258 → HA 24.0-25.8, Mar range 0-115).
+    32: {"name": "V1 Heating Valve",      "scale": 0.1,  "unit": "%",     "icon": "mdi:valve",                "class": None},
+    # CONFIRMED (defrost validated): Reversing valve. Scale ×0.1 confirmed
+    # (Feb raw 1000 → HA 100.0, raw 502 → HA 50.2).
+    # Normal heating: 100%. Defrost entry/exit: drops to 50% then 0% (full actuation).
+    # Multiple actuations per night — not only during confirmed defrost events.
+    34: {"name": "Reversing Valve",       "scale": 0.1,  "unit": "%",     "icon": "mdi:snowflake-melt",       "class": None},
+    # UNCONFIRMED: 0-103% range. Previously "V4 Inverter". May be inverter duty or valve.
+    35: {"name": "V4 Inverter",           "scale": 0.1,  "unit": "%",     "icon": "mdi:sine-wave",            "class": None},
+    # CONFIRMED (defrost validated): EEV position. 54-75% heating, drops to 0% during defrost.
+    # Reopens during recovery. Classic EEV behaviour.
+    62: {"name": "EEV Opening",           "scale": 1,    "unit": "%",     "icon": "mdi:valve-open",           "class": None},
 
     # --- Power (W) ---
-    # CONFIRMED: r=0.999 vs Shelly EM (n=1206)
-    27: {"name": "Electrical Power In",  "scale": 1,    "unit": "W",     "icon": "mdi:flash",                "class": "power"},
-    # CONFIRMED: r=0.999 vs flow×ΔT thermal calculation
-    64: {"name": "Heat Output",          "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
+    # Total electrical including fans/pumps. R26 > R27 by ~150W consistently.
+    # COP against R25: R26 → 2.04, R27 → 2.23. Difference = ancillary load.
+    26: {"name": "Electrical Power Total","scale": 1,    "unit": "W",     "icon": "mdi:flash",                "class": "power"},
+    # CONFIRMED: r=0.999 vs Shelly EM (n=1206). Compressor electrical.
+    27: {"name": "Compressor Power",      "scale": 1,    "unit": "W",     "icon": "mdi:flash",                "class": "power"},
+    # Thermal output — primary measurement.
+    25: {"name": "Heat Output",           "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
+    # Secondary heat metric — possibly DHW contribution or zone split.
+    28: {"name": "Heat Output 2",         "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
+
+    # --- Defrost / Operating State ---
+    # CONFIRMED (defrost validated): Signed accumulator, NOT a simple countdown.
+    # Normal: -160 to -190. Trigger: drops to -421. Counts up through 0 to +145/+246.
+    # Resets to -40 to -57 after defrost. Likely integrates (evap_temp - threshold) × dt.
+    57: {"name": "Defrost Accumulator",   "scale": 1,    "unit": "",      "icon": "mdi:snowflake-alert",      "class": None},
+    # CONFIRMED (defrost validated): Operating mode state machine.
+    #   2 = Normal heating, 6 = Pre-defrost, 7 = Defrost active, 8 = Post-defrost recovery
+    65: {"name": "Operating Mode",        "scale": 1,    "unit": "",      "icon": "mdi:state-machine",        "class": None},
+
+    # --- Counters ---
+    20: {"name": "Runtime Counter",       "scale": 1,    "unit": "s",     "icon": "mdi:timer-outline",        "class": None},
+    63: {"name": "Energy Counter",        "scale": 1,    "unit": "Wh",    "icon": "mdi:counter",              "class": None},
+    # Wild uint16 swings during defrost — signed accumulator or bitfield. NOT power output.
+    64: {"name": "State Accumulator",     "scale": 1,    "unit": "",      "icon": "mdi:counter",              "class": None},
 
     # --- Fan ---
-    61: {"name": "Fan Speed",            "scale": 1,    "unit": "RPM",   "icon": "mdi:fan",                  "class": None},
+    61: {"name": "Fan Speed",             "scale": 1,    "unit": "RPM",   "icon": "mdi:fan",                  "class": None},
 
-    # --- Rated specs (constant) ---
-    59: {"name": "Rated Heat Capacity",  "scale": 1,    "unit": "W",     "icon": "mdi:information",          "class": None},
-    60: {"name": "Rated Elec Input",     "scale": 1,    "unit": "W",     "icon": "mdi:information",          "class": None},
+    # --- Rated Specs (constant) ---
+    59: {"name": "Rated Heat Capacity",   "scale": 1,    "unit": "W",     "icon": "mdi:information",          "class": None},
+    60: {"name": "Rated Elec Input",      "scale": 1,    "unit": "W",     "icon": "mdi:information",          "class": None},
 
-    # --- UNCONFIRMED ---
-    # Strong candidate for compressor speed but not proven
-    63: {"name": "Unknown 63",           "scale": 1,    "unit": "",      "icon": "mdi:help-circle",          "class": None},
+    # --- DHW ---
+    # Constant 60.0°C — DHW tank temp or setpoint. NOT compressor freq (spec was wrong).
+    53: {"name": "DHW Tank Temp",         "scale": 0.1,  "unit": "°C",    "icon": "mdi:water-boiler",         "class": "temperature"},
+    # Outdoor unit ambient sensor. 1.9-2.5°C in Feb steady state.
+    # WARNING: 0-307 range during defrost — possibly packed register or sensor affected by defrost heat.
+    # Published raw (no scale, no device_class) until byte decomposition tested.
+    54: {"name": "Outdoor Ambient Raw",   "scale": 1,    "unit": "",      "icon": "mdi:thermometer",          "class": None},
 
-    # --- Operating mode ---
-    # STATISTICAL: Discrete values 0/1/2/3 — likely Off / Heating / DHW / Defrost (requires operational confirmation)
-    66: {"name": "Operating Mode",       "scale": 1,    "unit": "",      "icon": "mdi:state-machine",        "class": None},
+    # --- Hub Control Registers ---
+    92: {"name": "Mode Demand",           "scale": 1,    "unit": "",      "icon": "mdi:thermostat",           "class": None},
+    210:{"name": "Status Register",       "scale": 1,    "unit": "",      "icon": "mdi:information",          "class": None},
 
-    # --- Hub control registers ---
-    # reg 0, reg 1: written {0,0} every cycle during both space heat and DHW.
-    # Never observed non-zero. May be write-once demand latch (transition not yet captured)
-    # or heartbeat. Do not map until HW start/end transitions are observed.
-    # reg 92: always 4 in all captured writes (space heat and DHW active).
-    # Likely operating mode flag. Value may differ at HW start/stop transition.
-    # Do not promote to CONFIRMED until transition capture available.
-    92: {"name": "Mode Demand",          "scale": 1,    "unit": "",      "icon": "mdi:thermostat",           "class": None},
-    210:{"name": "Status Register",      "scale": 1,    "unit": "",      "icon": "mdi:information",          "class": None},
+    # --- Unidentified (tracked for future analysis) ---
+    67: {"name": "Unknown 67",            "scale": 1,    "unit": "",      "icon": "mdi:help-circle",          "class": None},
+    75: {"name": "Unknown 75",            "scale": 1,    "unit": "",      "icon": "mdi:help-circle",          "class": None},
+    77: {"name": "Config Param 77",       "scale": 1,    "unit": "",      "icon": "mdi:cog",                  "class": None},
 }
 
 

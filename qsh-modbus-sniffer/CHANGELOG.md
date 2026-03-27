@@ -1,5 +1,62 @@
 # Changelog
 
+## 4.4.0
+
+Major register map update validated by two confirmed defrost events (2026-03-26 04:22 and 07:16 UTC) plus multiple reversing-valve actuations.
+
+### Register renames (defrost validated)
+- **Reg 29**: "HP LWT" → "Flow Temp"
+- **Reg 30**: "Condenser Temp" → "Return Temp" (correlates with return pipe sensor)
+- **Reg 38**: "Internal Unit Temp" → "Suction Line Temp" (wide range -13 to +27°C)
+- **Reg 39**: "Outdoor Ambient Temp" → "Outdoor Coil Air Temp" (tracks below outdoor, swings during defrost)
+- **Reg 40**: "System Return Temp" → "Condenser Outlet Temp" (water return path, always below flow)
+- **Reg 41**: "T6 Sump" → "Evaporator Inlet Temp" (goes to -10°C during defrost, R290 cross-check)
+- **Reg 43**: "T8 Liquid" → "Liquid Line Temp"
+- **Reg 44**: "T9 Flow Temp" → "Condenser Mid Temp"
+- **Reg 45**: "DHW Cylinder Temp" → "Compressor Shell Temp" (52-54°C steady, drops 18°C during defrost)
+- **Reg 32**: "V1 Heating" → "V1 Heating Valve"
+- **Reg 34**: "V3 Defrost" → "Reversing Valve" (100% heating, drops to 0% during defrost)
+- **Reg 36**: "T1 External Temp" → "OAT External"
+- **Reg 37**: "T2 Intermediate" → "Indoor Ambient"
+- **Reg 27**: "Electrical Power In" → "Compressor Power"
+
+### Critical correction: R64
+- **Reg 64**: "Heat Output" → "State Accumulator" — wild uint16 swings during defrost prove this is NOT thermal output. R25 is the actual heat output register.
+
+### New registers (previously published as "Modbus Reg XX")
+- **Reg 19**: Compressor Frequency (scale ×0.1 Hz, confirmed by physics)
+- **Reg 24**: Suction Pressure (scale ×0.1 kPa, R290 saturation cross-check)
+- **Reg 25**: Heat Output (primary thermal measurement)
+- **Reg 26**: Electrical Power Total (includes fans/pumps, ~150W above R27)
+- **Reg 28**: Heat Output 2 (secondary heat metric)
+- **Reg 55**: Evaporator Temp (primary frost signal, defrost validated)
+- **Reg 56**: Discharge Temp (defrost validated)
+- **Reg 57**: Defrost Accumulator (signed integrator, not countdown)
+- **Reg 62**: EEV Opening (54-75% heating, 0% during defrost)
+- **Reg 65**: Operating Mode (state machine: 2=heating, 6=pre-defrost, 7=defrost, 8=recovery)
+- **Reg 20**: Runtime Counter
+- **Reg 63**: Energy Counter (was "Unknown 63")
+- **Reg 53**: DHW Tank Temp (constant 60.0°C, was misidentified as Compressor Frequency)
+- **Reg 54**: Outdoor Ambient Raw (unsigned, no device_class — suspect packed register)
+- **Reg 67, 75, 77**: Tracked for future analysis
+
+### Removed registers
+- **Reg 51**: Compressor Speed % — removed (R19 is the confirmed compressor register)
+- **Reg 66**: Operating Mode — removed (R65 is the confirmed state machine)
+
+### Demoted to Unknown
+- **Reg 48**: "Discharge Pressure" → "Unknown 48" (plausible but not closed)
+- **Reg 50**: "Reported COP" → "Unknown 50" (may not be a pressure)
+
+### SIGNED_REGISTERS changes
+- Added R19 (compressor Hz), R24 (suction pressure)
+- Removed R54 (scaling suspect during defrost, published raw unsigned)
+
+### HA entity impact
+- Existing entities retain history (unique_id unchanged)
+- Scale changes cause expected discontinuities for R19, R24, R55, R54
+- R64 name change from "Heat Output" → "State Accumulator" will affect dashboards using friendly name
+
 ## 4.3.0
 
 - **Reg 29**: Renamed "Flow Temp" → "HP LWT" — condenser outlet leaving water temp; reads 2–4°C above system flow before volumiser mixing
