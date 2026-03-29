@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.5.0
+
+Stale data protection and gateway connectivity status.
+
+### MQTT discovery: expire_after
+- All sensor discovery payloads now include `expire_after: 60` — Home Assistant marks entities unavailable after 60s of no updates, preventing stale data from appearing live during gateway outages
+
+### Gateway connectivity status topic
+- New `qsh_modbus/status` topic publishes `online`/`offline` (retained) reflecting Waveshare TCP socket state
+- MQTT Last Will and Testament (LWT) ensures broker publishes `offline` if the sniffer process dies unexpectedly
+- Explicit `offline` published when entering TCP reconnect loop; `online` restored on successful reconnect
+- New `binary_sensor.modbus_gateway_status` (device_class: connectivity, entity_category: diagnostic) enables HA automations to detect prolonged outages and trigger remedial action (e.g. smart plug power-cycle)
+
+### Housekeeping
+- `sw_version` in discovery payloads updated from 4.3.0 to 4.5.0
+
 ## 4.4.0
 
 Major register map update validated by two confirmed defrost events (2026-03-26 04:22 and 07:16 UTC) plus multiple reversing-valve actuations.
