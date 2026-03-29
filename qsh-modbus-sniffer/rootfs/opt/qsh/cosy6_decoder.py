@@ -613,7 +613,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.5.0",
+                "sw_version": "4.5.1",
             },
         }
         self.client.publish(
@@ -641,10 +641,10 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.5.0",
+                "sw_version": "4.5.1",
             },
             "availability": {
-                "topic": f"{self.base_topic}/status",
+                "topic": "qsh_modbus/status",
             },
         }
         if unit:
@@ -684,10 +684,10 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.5.0",
+                "sw_version": "4.5.1",
             },
             "availability": {
-                "topic": f"{self.base_topic}/status",
+                "topic": "qsh_modbus/status",
             },
         }
 
