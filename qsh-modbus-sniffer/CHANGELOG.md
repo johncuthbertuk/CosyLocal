@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.5.1
+
+Fix MQTT availability topic mismatch causing permanent entity unavailability.
+
+### Bug fix
+- Fixed `availability.topic` in `_send_discovery` and `_send_discovery_custom` — was using `{base_topic}/status` (resolves to `Cosy HP/status`) instead of the correct `qsh_modbus/status` where LWT and gateway status are actually published
+- All sensor entities now correctly track the gateway online/offline status
+
+### Housekeeping
+- `sw_version` in discovery payloads updated from 4.5.0 to 4.5.1
+
 ## 4.5.0
 
 Stale data protection and gateway connectivity status.
