@@ -568,8 +568,8 @@ class MQTTPublisher:
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
         self.client.will_set(
-            f"{self.base_topic}/status",
-            "offline", retain=True
+            "qsh_modbus/status",
+            payload="offline", qos=1, retain=True
         )
         try:
             self.client.connect(self.config["mqtt_host"], self.config["mqtt_port"], keepalive=60)
@@ -581,9 +581,11 @@ class MQTTPublisher:
         if rc == 0:
             self.connected = True
             logging.info("MQTT connected")
-            self.client.publish(f"{self.base_topic}/status", "online", retain=True)
+            self.client.publish("qsh_modbus/status", "online", retain=True)
             # Re-send discovery on reconnect
             self.discovery_sent.clear()
+            # Publish gateway status binary_sensor discovery
+            self._send_gateway_status_discovery()
             # Publish operating state discovery
             self._send_discovery_custom("operating_state", "Modbus Operating State", "", "mdi:state-machine", None)
         else:
@@ -594,6 +596,37 @@ class MQTTPublisher:
         if rc != 0:
             logging.warning(f"MQTT disconnected unexpectedly: rc={rc}")
 
+    def _send_gateway_status_discovery(self):
+        """Send MQTT discovery for the gateway connectivity binary_sensor."""
+        if not self.client:
+            return
+        payload = {
+            "name": "Modbus Gateway Status",
+            "unique_id": "qsh_modbus_gateway_status",
+            "state_topic": "qsh_modbus/status",
+            "payload_on": "online",
+            "payload_off": "offline",
+            "device_class": "connectivity",
+            "entity_category": "diagnostic",
+            "device": {
+                "identifiers": ["qsh_modbus_sniffer"],
+                "name": "QSH Modbus Sniffer",
+                "manufacturer": "QSH",
+                "model": "Cosy 6 Passive Sniffer",
+                "sw_version": "4.5.0",
+            },
+        }
+        self.client.publish(
+            "homeassistant/binary_sensor/qsh_modbus_gateway_status/config",
+            json.dumps(payload), retain=True
+        )
+
+    def publish_gateway_offline(self):
+        """Publish offline status when Waveshare TCP connection is lost."""
+        if self.connected and self.client:
+            self.client.publish("qsh_modbus/status", "offline", retain=True)
+            logging.info("Published gateway status: offline")
+
     def _send_discovery_custom(self, sensor_id, name, unit, icon, device_class):
         """Send MQTT discovery for a custom (non-register) sensor."""
         if not self.client or sensor_id in self.discovery_sent:
@@ -602,12 +635,13 @@ class MQTTPublisher:
             "name": name,
             "state_topic": f"{self.base_topic}/{sensor_id}",
             "unique_id": f"qsh_modbus_{sensor_id}",
+            "expire_after": 60,
             "device": {
                 "identifiers": ["qsh_modbus_sniffer"],
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.3.0",
+                "sw_version": "4.5.0",
             },
             "availability": {
                 "topic": f"{self.base_topic}/status",
@@ -644,12 +678,13 @@ class MQTTPublisher:
             "name": f"Cosy {name}",
             "unique_id": uid,
             "state_topic": state_topic,
+            "expire_after": 60,
             "device": {
                 "identifiers": ["qsh_modbus_sniffer"],
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.3.0",
+                "sw_version": "4.5.0",
             },
             "availability": {
                 "topic": f"{self.base_topic}/status",
@@ -706,7 +741,7 @@ class MQTTPublisher:
 
     def stop(self):
         if self.client:
-            self.client.publish(f"{self.base_topic}/status", "offline", retain=True)
+            self.client.publish("qsh_modbus/status", "offline", retain=True)
             self.client.loop_stop()
             self.client.disconnect()
 
@@ -843,6 +878,10 @@ class ModbusSniffer:
                 self.consecutive_failures = 0
                 self.stats["reconnects"] += 1
                 logging.info(f"Connected to gateway {self.config['gateway_host']}:{self.config['gateway_port']}")
+                # Restore gateway online status after successful TCP reconnect
+                if self.mqtt_pub.connected and self.mqtt_pub.client:
+                    self.mqtt_pub.client.publish("qsh_modbus/status", "online", retain=True)
+                    logging.info("Published gateway status: online")
                 return True
             except Exception as e:
                 logging.error(f"Connection failed: {e} — retrying in {delay}s")
@@ -874,6 +913,7 @@ class ModbusSniffer:
                 data = self.socket.recv(1024)
                 if not data:
                     logging.warning("Connection closed by gateway — reconnecting")
+                    self.mqtt_pub.publish_gateway_offline()
                     if not self.connect():
                         break
                     last_recv_time = time.time()
@@ -906,12 +946,14 @@ class ModbusSniffer:
                 if self.buffer:
                     self._try_parse_frame(time.time())
                 logging.warning("Socket timeout — no data for 30s, reconnecting")
+                self.mqtt_pub.publish_gateway_offline()
                 if not self.connect():
                     break
                 last_recv_time = time.time()
                 continue
             except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError) as e:
                 logging.warning(f"Connection error: {e} — reconnecting")
+                self.mqtt_pub.publish_gateway_offline()
                 if not self.connect():
                     break
             except Exception as e:
@@ -919,6 +961,7 @@ class ModbusSniffer:
                 self.consecutive_failures += 1
                 if self.consecutive_failures > 10:
                     logging.error("Too many consecutive failures — reconnecting")
+                    self.mqtt_pub.publish_gateway_offline()
                     if not self.connect():
                         break
                 time.sleep(0.1)
