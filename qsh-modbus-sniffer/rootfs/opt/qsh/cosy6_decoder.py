@@ -86,7 +86,7 @@ FUNCTION_CODES = {
 SIGNED_REGISTERS = {
     19,                                  # Compressor frequency
     24,                                  # Suction pressure
-    29, 30,                              # Flow temp, return temp
+    29, 30,                              # Condenser inlet, condenser outlet
     32,                                  # V1 heating valve
     36, 37, 38, 39,                      # OAT, indoor ambient, suction line, outdoor coil
     40, 41, 43, 44, 45,                  # Condenser outlet, evap inlet, liquid, condenser mid, shell
@@ -115,10 +115,17 @@ REGISTER_NAMES = {
     19: {"name": "Compressor Frequency",  "scale": 0.1,  "unit": "Hz",    "icon": "mdi:sine-wave",            "class": "frequency"},
 
     # --- Temperatures (raw × 0.1 = °C) ---
-    # CONFIRMED: r=0.999 vs flow temp sensor (n=1206)
-    29: {"name": "Flow Temp",             "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # CONFIRMED: correlates with return pipe sensor
-    30: {"name": "Return Temp",           "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # NAMED: Originally labelled "flow_temp" by second sniffer but DISPROVEN
+    # by 36-hour time-series: range 50.9-74.0°C, always 20-40°C above actual
+    # water flow (reg 44 / primary sensor). Tracks reg 30 at r=0.999 with
+    # stable 5.3°C ΔT — condenser heat exchanger refrigerant side.
+    # Reg 29 = hot gas inlet (superheated discharge entering condenser).
+    29: {"name": "Condenser Inlet Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-chevron-up",   "class": "temperature"},
+    # NAMED: Originally labelled "return_temp" by second sniffer but DISPROVEN
+    # by 36-hour time-series: range 46.3-67.7°C, always 12-37°C above actual
+    # water return (reg 40 / primary sensor). Tracks reg 29 at r=0.999.
+    # Reg 30 = subcooled liquid outlet (leaving condenser toward EEV).
+    30: {"name": "Condenser Outlet Temp", "scale": 0.1, "unit": "°C",    "icon": "mdi:thermometer-chevron-down", "class": "temperature"},
     # CONFIRMED: r=1.000 vs Octopus API outdoor_temperature (n=402, max diff 0.8°C).
     # Second sniffer mislabelled as "fixed_param_60" but their own data shows
     # variation (24-25 raw = 2.4-2.5°C) confirming it is NOT fixed. Stuart's
@@ -670,7 +677,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.6.0",
+                "sw_version": "4.6.1",
             },
         }
         self.client.publish(
@@ -698,7 +705,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.6.0",
+                "sw_version": "4.6.1",
             },
             "availability": {
                 "topic": "qsh_modbus/status",
@@ -741,7 +748,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.6.0",
+                "sw_version": "4.6.1",
             },
             "availability": {
                 "topic": "qsh_modbus/status",
