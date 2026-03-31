@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.6.2 — 2026-03-31
+
+### Register correction — Regs 40, 44, 45
+
+Reverted incorrect refrigerant-circuit naming applied to water circuit
+sensors. These registers were previously confirmed as water-side sensors
+and should never have been renamed:
+
+- Reg 40: "Condenser Outlet Temp" → "T5 Return Temp" (r=0.974 vs
+  independent return sensor, CONFIRMED)
+- Reg 44: "Condenser Mid Temp" → "T9 Flow Temp" (38-40°C in raw frames,
+  ~5°C above return during active heating, CONFIRMED)
+- Reg 45: "Compressor Shell Temp" → "DHW Cylinder Temp" (52-54°C during
+  active DHW cycle, CONFIRMED)
+
+Evidence: 41-hour time-series correlation against independent pipe sensors,
+raw Modbus frame analysis, thermodynamic ΔT validation.
+
 ## 4.6.1 — 2026-03-31
 
 ### Register correction — Reg 29 & 30

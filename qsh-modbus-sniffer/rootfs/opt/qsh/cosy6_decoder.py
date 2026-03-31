@@ -142,32 +142,28 @@ REGISTER_NAMES = {
     # Previously labelled "Evaporator Temp" but R55 is the actual evap coil sensor.
     # Tracks below outdoor — likely outdoor coil air temp or calculated evaporating temp.
     39: {"name": "Outdoor Coil Air Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-low",      "class": "temperature"},
-    # CONFIRMED: Both sniffers agree water-side return temp. Second sniffer
-    # labels "Condenser Outlet Temp" from HP installer page — condenser outlet
-    # IS the return path. Note: second sniffer also sees a separate return temp
-    # at reg 30 (26.1°C vs 34.6°C here) suggesting two measurement points
-    # (condenser-side vs system-side).
-    40: {"name": "Condenser Outlet Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
+    # CONFIRMED: Water circuit return temperature. r=0.974 vs independent
+    # return pipe sensor over 1,700+ samples (41 hours). Mean offset +0.17°C.
+    # Previously misnamed "Condenser Outlet Temp" — regs 29/30 are the actual
+    # condenser (refrigerant) sensors. This is the water side.
+    40: {"name": "T5 Return Temp",        "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # CONFIRMED: Stuart "T6 Sump", second sniffer "Evaporator Inlet" from HP
     # installer page. Value 4.2°C plausible for R32 evaporator inlet in
     # heating mode.
     41: {"name": "Evaporator Inlet Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # NAMED (AP mode T8): Liquid line temp, 2-43°C range. Dynamic during defrost.
     43: {"name": "Liquid Line Temp",      "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # CONFIRMED: Both sniffers agree flow-side temp. Second sniffer labels
-    # "Condenser Mid Temp" from HP installer page — hottest point in condenser
-    # = flow measurement point. Note: second sniffer also sees a separate flow
-    # temp at reg 29 (31.3°C vs 39.6°C here) — condenser-side vs system-side.
-    44: {"name": "Condenser Mid Temp",    "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # CONFIRMED: DHW cylinder temp. Rises steadily 52→54°C during active HW
-    # cycles, stable when idle. Second sniffer matched to "T10 Discharge /
-    # Compressor Shell" from HP installer page — but their own reg 56 shows a
-    # SEPARATE discharge_temp at 40.8°C, which contradicts 45 being discharge.
-    # Additionally, second sniffer's reg 53 shows "dhw_tank_temp" at exactly
-    # 60.0°C — suspiciously round, likely the DHW TARGET setpoint not actual.
-    # Stuart's time-series evidence (rising during HW cycles) is stronger than
-    # single-snapshot cross-reference. Mapping holds.
-    45: {"name": "Compressor Shell Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
+    # CONFIRMED: Water circuit flow temperature. 38.1-39.6°C during active
+    # heating in raw Modbus frames, consistently ~5°C above reg 40 (return).
+    # Previously misnamed "Condenser Mid Temp" — regs 29/30 are the actual
+    # condenser (refrigerant) sensors. This is the water side.
+    44: {"name": "T9 Flow Temp",          "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
+    # CONFIRMED: DHW cylinder temp. During active DHW cycle (2026-02-18
+    # 06:30-08:21), read 52.4°C rising to 54.4°C toward 55°C setpoint.
+    # Range 22-82°C spans ambient (off) through DHW boost temperatures.
+    # Previously misnamed "Compressor Shell Temp" — reg 56 is the actual
+    # discharge temp (40.8°C), confirming this is NOT a compressor sensor.
+    45: {"name": "DHW Cylinder Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
     # CONFIRMED (defrost validated, R290 cross-check): Primary frost signal.
     # Steady state 5.8-7.8°C. Drops to 0°C at defrost trigger.
     # Spikes to 37-55°C during hot gas defrost, decays as ice melts.
@@ -677,7 +673,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.6.1",
+                "sw_version": "4.6.2",
             },
         }
         self.client.publish(
@@ -705,7 +701,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.6.1",
+                "sw_version": "4.6.2",
             },
             "availability": {
                 "topic": "qsh_modbus/status",
@@ -748,7 +744,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.6.1",
+                "sw_version": "4.6.2",
             },
             "availability": {
                 "topic": "qsh_modbus/status",
