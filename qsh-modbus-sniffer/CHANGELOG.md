@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.6.1 — 2026-03-31
+
+### Register correction — Reg 29 & 30
+
+Corrected reg 29 and 30 labels. Previously labelled as water flow/return
+temperatures based on a second sniffer's short capture. Disproven by
+36-hour time-series comparison against primary flow/return sensors:
+
+- Reg 29: "Flow Temp" → "Condenser Inlet Temp" (superheated gas, 50-74°C)
+- Reg 30: "Return Temp" → "Condenser Outlet Temp" (subcooled liquid, 46-68°C)
+
+Evidence: r=0.999 mutual correlation, stable 5.3°C ΔT (condenser approach),
+values 20-40°C above actual water circuit temps. Confirmed water flow/return
+remain at reg 44 (T9 Flow) and reg 40 (T5 Return).
+
+No functional changes to frame parsing, MQTT publishing, or socket handling.
+
 ## 4.6.0 — 2026-03-31
 
 ### Register map update — cross-referenced second sniffer
