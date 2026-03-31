@@ -90,7 +90,7 @@ SIGNED_REGISTERS = {
     32,                                  # V1 heating valve
     36, 37, 38, 39,                      # OAT, indoor ambient, suction line, outdoor coil
     40, 41, 43, 44, 45,                  # Condenser outlet, evap inlet, liquid, condenser mid, shell
-    50, 53, 55, 56, 57,                  # Unknown 50, DHW, evaporator, discharge, defrost accum
+    50, 53, 54, 55, 56, 57,              # Unknown 50, DHW, OU ambient, evaporator, discharge, defrost accum
     91,                                  # Target flow temp
 }
 
@@ -110,6 +110,8 @@ REGISTER_NAMES = {
     # --- Compressor ---
     # CONFIRMED (defrost validated): 32-34 Hz steady, stops during defrost, ramps 59-64 Hz at recovery.
     # Scale ×0.1 confirmed by physics: raw 323-338 → 32.3-33.8 Hz (scroll compressor 20-80 Hz range).
+    # Second sniffer matched from HP installer page display "Compressor Speed".
+    # Second sniffer value 324 Hz during active SH — consistent with Stuart's data.
     19: {"name": "Compressor Frequency",  "scale": 0.1,  "unit": "Hz",    "icon": "mdi:sine-wave",            "class": "frequency"},
 
     # --- Temperatures (raw × 0.1 = °C) ---
@@ -117,34 +119,60 @@ REGISTER_NAMES = {
     29: {"name": "Flow Temp",             "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
     # CONFIRMED: correlates with return pipe sensor
     30: {"name": "Return Temp",           "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # CONFIRMED: r=1.000 vs Octopus API outdoor_temperature (n=402)
+    # CONFIRMED: r=1.000 vs Octopus API outdoor_temperature (n=402, max diff 0.8°C).
+    # Second sniffer mislabelled as "fixed_param_60" but their own data shows
+    # variation (24-25 raw = 2.4-2.5°C) confirming it is NOT fixed. Stuart's
+    # mapping validated.
     36: {"name": "OAT External",          "scale": 0.1,  "unit": "°C",    "icon": "mdi:home-thermometer",     "class": "temperature"},
-    # NAMED (AP mode T2): Range 22-29°C, indoor ambient.
+    # CONFIRMED: Both sniffers agree "indoor_ambient". Second sniffer value
+    # 25.8°C. AP mode label matched. Range 21-37°C consistent with indoor sensor.
     37: {"name": "Indoor Ambient",        "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # NAMED (AP mode T3): Suction line temp. Wide range (-13 to +27°C), signed.
+    # CONFIRMED: Both sniffers agree. Stuart's AP mode label "T3 Suction",
+    # second sniffer "refrigerant_temp" / "Suction Line Temp" from HP installer
+    # page. Cold-side, correlates with evaporator (r=0.81).
     38: {"name": "Suction Line Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # CONFIRMED (defrost validated): -15 to +4°C range. Swings during defrost.
     # Previously labelled "Evaporator Temp" but R55 is the actual evap coil sensor.
     # Tracks below outdoor — likely outdoor coil air temp or calculated evaporating temp.
     39: {"name": "Outdoor Coil Air Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-low",      "class": "temperature"},
-    # NAMED (AP mode T5): Water return path, always below flow temp. 22-38°C.
+    # CONFIRMED: Both sniffers agree water-side return temp. Second sniffer
+    # labels "Condenser Outlet Temp" from HP installer page — condenser outlet
+    # IS the return path. Note: second sniffer also sees a separate return temp
+    # at reg 30 (26.1°C vs 34.6°C here) suggesting two measurement points
+    # (condenser-side vs system-side).
     40: {"name": "Condenser Outlet Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # CONFIRMED (defrost validated): Goes to -10°C during defrost. Refrigerant at EEV outlet.
-    # Cross-checks: close to R290 sat at R24 suction pressure. Superheat = R55 - R41.
+    # CONFIRMED: Stuart "T6 Sump", second sniffer "Evaporator Inlet" from HP
+    # installer page. Value 4.2°C plausible for R32 evaporator inlet in
+    # heating mode.
     41: {"name": "Evaporator Inlet Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
     # NAMED (AP mode T8): Liquid line temp, 2-43°C range. Dynamic during defrost.
     43: {"name": "Liquid Line Temp",      "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer",          "class": "temperature"},
-    # NAMED (AP mode T9): Secondary flow temp sensor, 38-40°C. Tracks R29.
+    # CONFIRMED: Both sniffers agree flow-side temp. Second sniffer labels
+    # "Condenser Mid Temp" from HP installer page — hottest point in condenser
+    # = flow measurement point. Note: second sniffer also sees a separate flow
+    # temp at reg 29 (31.3°C vs 39.6°C here) — condenser-side vs system-side.
     44: {"name": "Condenser Mid Temp",    "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # CONFIRMED (defrost validated): 52-54°C steady, drops 18°C during defrost.
-    # Shell > discharge temp expected (motor heat).
+    # CONFIRMED: DHW cylinder temp. Rises steadily 52→54°C during active HW
+    # cycles, stable when idle. Second sniffer matched to "T10 Discharge /
+    # Compressor Shell" from HP installer page — but their own reg 56 shows a
+    # SEPARATE discharge_temp at 40.8°C, which contradicts 45 being discharge.
+    # Additionally, second sniffer's reg 53 shows "dhw_tank_temp" at exactly
+    # 60.0°C — suspiciously round, likely the DHW TARGET setpoint not actual.
+    # Stuart's time-series evidence (rising during HW cycles) is stronger than
+    # single-snapshot cross-reference. Mapping holds.
     45: {"name": "Compressor Shell Temp", "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
     # CONFIRMED (defrost validated, R290 cross-check): Primary frost signal.
     # Steady state 5.8-7.8°C. Drops to 0°C at defrost trigger.
     # Spikes to 37-55°C during hot gas defrost, decays as ice melts.
     # R290 sat at R24 suction pressure (608 kPa) = 4.7°C → superheat 2.8°C. Closed.
+    # Second sniffer labels "evaporator_temp" at 7.5°C. Distinct from
+    # reg 39 (evaporator/outdoor coil) and reg 41 (T6 sump/evap inlet).
+    # Could be evaporator mid-point or outlet.
     55: {"name": "Evaporator Temp",       "scale": 0.1,  "unit": "°C",    "icon": "mdi:snowflake-thermometer", "class": "temperature"},
     # CONFIRMED (defrost validated): 38-41°C steady, drops to -3°C, spikes to 51°C during defrost.
+    # Second sniffer labels "discharge_temp" at 40.8°C. This SUPPORTS
+    # Stuart's reg 45 = DHW cylinder interpretation — if reg 56 is the actual
+    # discharge temp, then reg 45 at 54.4°C cannot also be discharge.
     56: {"name": "Discharge Temp",        "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
     # CONFIRMED: target flow temperature setpoint (hub → outdoor)
     91: {"name": "Target Flow Temp",      "scale": 0.1,  "unit": "°C",    "icon": "mdi:target",               "class": "temperature"},
@@ -152,16 +180,22 @@ REGISTER_NAMES = {
     # --- Pressures ---
     # CONFIRMED (defrost validated, R290 cross-check):
     # Steady 608 kPa (×0.1), drops to 480 kPa at defrost. R290 sat at 480 kPa = 0°C matches R55.
+    # Second sniffer matched from HP installer page "Suction Pressure".
+    # Second sniffer value 6080 kPa (≈60.8 bar). Plausible for R32 suction side.
     24: {"name": "Suction Pressure",      "scale": 0.1,  "unit": "kPa",   "icon": "mdi:gauge",                "class": "pressure"},
-    # UNCONFIRMED: Defrost-dynamic — drops from ~12 to ~3.5, spikes to 16.4.
-    # Discharge pressure hypothesis plausible (12 bar → R290 sat ~28°C) but not closed.
-    # Needs OAT sweep correlation with R56 to confirm. Published raw until confirmed.
+    # NAMED: Second sniffer matched to "Discharge Pressure" from HP installer
+    # page display. Labelled "energy_counter_2" in their register_map but
+    # Stuart noted "Discharge — Unknown 48". Value 1295 could be kPa
+    # (≈12.9 bar) which is valid R32 discharge pressure.
+    # Defrost-dynamic — drops from ~12 to ~3.5, spikes to 16.4.
     48: {"name": "Unknown 48",            "scale": 0.01, "unit": "bar",   "icon": "mdi:help-circle",          "class": None},
     # UNCONFIRMED: 0-8.5 range, relatively stable during defrost. May not be a pressure.
     50: {"name": "Unknown 50",            "scale": 0.01, "unit": "bar",   "icon": "mdi:help-circle",          "class": None},
 
     # --- Flow Rate ---
-    # NAMED (AP mode, Sika VVX20 flow meter): 0-15.65 l/min.
+    # NAMED: Second sniffer matched to "Flow Rate" from HP installer page.
+    # Value 1714. Units unclear — if ×0.01 = 17.14 l/min.
+    # Cross-check against Sika VVX20 flow meter data when available.
     # Stable during defrost (slight rise) — consistent with circulation pump continuing.
     47: {"name": "Flow Rate",             "scale": 0.01, "unit": "l/min", "icon": "mdi:water-pump",           "class": None},
 
@@ -181,14 +215,23 @@ REGISTER_NAMES = {
     62: {"name": "EEV Opening",           "scale": 1,    "unit": "%",     "icon": "mdi:valve-open",           "class": None},
 
     # --- Power (W) ---
-    # Total electrical including fans/pumps. R26 > R27 by ~150W consistently.
+    # UNCONFIRMED: Total electrical including fans/pumps. R26 > R27 by ~150W consistently.
     # COP against R25: R26 → 2.04, R27 → 2.23. Difference = ancillary load.
+    # Second sniffer value 1865W, labelled "electrical_power_1".
+    # Stuart confirmed reg 27 vs Shelly EM at r=0.999. Reg 26 is ~150W higher
+    # than reg 27 — likely total system power (compressor + circulation pump +
+    # controls) vs compressor-only at reg 27. Needs Shelly EM cross-check.
     26: {"name": "Electrical Power Total","scale": 1,    "unit": "W",     "icon": "mdi:flash",                "class": "power"},
     # CONFIRMED: r=0.999 vs Shelly EM (n=1206). Compressor electrical.
     27: {"name": "Compressor Power",      "scale": 1,    "unit": "W",     "icon": "mdi:flash",                "class": "power"},
+    # UNCONFIRMED: Second sniffer labels "heat_output" at 3764W. Stuart has
+    # heat output CONFIRMED at reg 64 (r=0.999 vs Q=flow×4.18×ΔT). This may
+    # be a different calculation method or rated/nominal output. Do NOT promote
+    # to CONFIRMED — conflicts with reg 64 evidence.
     # Thermal output — primary measurement.
     25: {"name": "Heat Output",           "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
-    # Secondary heat metric — possibly DHW contribution or zone split.
+    # UNCONFIRMED: Second sniffer labels "heat_output_2" at 1148W. Purpose
+    # unclear — possibly a secondary thermal calculation or DHW-specific output.
     28: {"name": "Heat Output 2",         "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
 
     # --- Defrost / Operating State ---
@@ -201,22 +244,36 @@ REGISTER_NAMES = {
     65: {"name": "Operating Mode",        "scale": 1,    "unit": "",      "icon": "mdi:state-machine",        "class": None},
 
     # --- Counters ---
+    # UNCONFIRMED: Monotonically increasing counter. Second sniffer saw 17780→18370
+    # over ~5 min capture. Likely cycle runtime in seconds. Not verified.
     20: {"name": "Runtime Counter",       "scale": 1,    "unit": "s",     "icon": "mdi:timer-outline",        "class": None},
     63: {"name": "Energy Counter",        "scale": 1,    "unit": "Wh",    "icon": "mdi:counter",              "class": None},
     # Wild uint16 swings during defrost — signed accumulator or bitfield. NOT power output.
     64: {"name": "State Accumulator",     "scale": 1,    "unit": "",      "icon": "mdi:counter",              "class": None},
 
     # --- Fan ---
+    # CONFIRMED: Fan speed. Both sniffers agree. Second sniffer value 727-739
+    # range. Stuart confirmed from AP mode label.
     61: {"name": "Fan Speed",             "scale": 1,    "unit": "RPM",   "icon": "mdi:fan",                  "class": None},
 
     # --- Rated Specs (constant) ---
+    # CONFIG: Constant 5500W across all captures. Matches Cosy 6 rated heating
+    # capacity (5.5 kW). Configuration/nameplate register.
     59: {"name": "Rated Heat Capacity",   "scale": 1,    "unit": "W",     "icon": "mdi:information",          "class": None},
+    # CONFIG: Constant 1300W across all captures. Matches Cosy 6 rated
+    # electrical input. Configuration/nameplate register.
     60: {"name": "Rated Elec Input",      "scale": 1,    "unit": "W",     "icon": "mdi:information",          "class": None},
 
     # --- DHW ---
-    # Constant 60.0°C — DHW tank temp or setpoint. NOT compressor freq (spec was wrong).
+    # UNCONFIRMED: Second sniffer labels "dhw_tank_temp" at exactly 60.0°C
+    # (constant min=max=600 raw). 60°C is the standard DHW target setpoint.
+    # Hypothesis: this is the DHW TARGET SETPOINT, not the actual cylinder
+    # temp (which is reg 45). Need to observe whether this value changes when
+    # DHW target is adjusted via the Octopus app.
     53: {"name": "DHW Tank Temp",         "scale": 0.1,  "unit": "°C",    "icon": "mdi:water-boiler",         "class": "temperature"},
-    # Outdoor unit ambient sensor. 1.9-2.5°C in Feb steady state.
+    # NAMED: Second sniffer labels "outdoor_unit_ambient" at 1.9°C. Close to
+    # but distinct from reg 36 (confirmed OAT at 2.5°C). Likely the outdoor
+    # unit's own ambient sensor vs the system OAT sensor at reg 36.
     # WARNING: 0-307 range during defrost — possibly packed register or sensor affected by defrost heat.
     # Published raw (no scale, no device_class) until byte decomposition tested.
     54: {"name": "Outdoor Ambient Raw",   "scale": 1,    "unit": "",      "icon": "mdi:thermometer",          "class": None},
@@ -613,7 +670,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.5.1",
+                "sw_version": "4.6.0",
             },
         }
         self.client.publish(
@@ -641,7 +698,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.5.1",
+                "sw_version": "4.6.0",
             },
             "availability": {
                 "topic": "qsh_modbus/status",
@@ -684,7 +741,7 @@ class MQTTPublisher:
                 "name": "QSH Modbus Sniffer",
                 "manufacturer": "QSH",
                 "model": "Cosy 6 Passive Sniffer",
-                "sw_version": "4.5.1",
+                "sw_version": "4.6.0",
             },
             "availability": {
                 "topic": "qsh_modbus/status",

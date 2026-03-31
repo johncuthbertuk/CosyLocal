@@ -1,5 +1,39 @@
 # Changelog
 
+## 4.6.0 — 2026-03-31
+
+### Register map update — cross-referenced second sniffer
+
+Updated register annotations with evidence from independent second sniffer operator
+who cross-referenced the HP outdoor unit's installer/AP mode page against
+simultaneous Modbus captures:
+
+**Updated annotations with second-sniffer corroboration:**
+- Reg 19: Compressor Frequency — second sniffer matched "Compressor Speed" from HP installer page
+- Reg 20: Runtime Counter — second sniffer saw monotonically increasing counter
+- Reg 24: Suction Pressure — second sniffer matched "Suction Pressure" from HP installer page
+- Reg 25: Heat Output — second sniffer "heat_output" (conflicts with confirmed reg 64)
+- Reg 26: Electrical Power Total — second sniffer "electrical_power_1" (needs Shelly EM cross-check)
+- Reg 28: Heat Output 2 — second sniffer "heat_output_2"
+- Reg 47: Flow Rate — second sniffer matched "Flow Rate" from HP installer page
+- Reg 48: Unknown 48 — second sniffer matched "Discharge Pressure" from HP installer page
+- Reg 53: DHW Tank Temp — second sniffer constant 60.0°C, likely DHW target setpoint
+- Reg 54: Outdoor Ambient Raw — second sniffer "outdoor_unit_ambient"
+- Reg 55: Evaporator Temp — second sniffer "evaporator_temp"
+- Reg 56: Discharge Temp — supports reg 45 = DHW cylinder interpretation
+- Reg 59: Rated Heat Capacity — CONFIG constant 5500W
+- Reg 60: Rated Elec Input — CONFIG constant 1300W
+- Regs 36, 37, 38, 40, 41, 44, 45, 61: confidence comments updated with
+  second-sniffer corroboration
+
+**SIGNED_REGISTERS:**
+- Added reg 54 (outdoor unit ambient temp can go negative)
+
+**Housekeeping:**
+- `sw_version` in discovery payloads updated from 4.5.1 to 4.6.0
+
+No functional changes to frame parsing, MQTT publishing, or socket handling.
+
 ## 4.5.1
 
 Fix MQTT availability topic mismatch causing permanent entity unavailability.
