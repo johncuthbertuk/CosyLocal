@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.6.3 — 2026-04-03
+
+### Log path fix — write to addon_config persistent storage
+
+Changed log output directory from `/data/modbus_logs` to `/config` so
+that sniffer.log, daily modbus CSV, and register_map.json are written
+to the add-on's persistent `addon_config` storage instead of the
+ephemeral `/data` volume.
+
+Removed hardcoded MQTT password from DEFAULT_CONFIG. Credentials are
+injected at runtime via the S6 run script (HA service discovery or
+add-on options).
+
+Files affected:
+- `rootfs/etc/services.d/qsh-sniffer/run`
+- `rootfs/opt/qsh/cosy6_decoder.py`
+
 ## 4.6.2 — 2026-03-31
 
 ### Register correction — Regs 40, 44, 45
