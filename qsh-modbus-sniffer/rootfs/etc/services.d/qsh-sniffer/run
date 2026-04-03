@@ -36,7 +36,7 @@ export MQTT_PORT
 export MQTT_USER
 export MQTT_PASS
 export PUBLISH_INTERVAL
-export LOG_DIR="/data/modbus_logs"
+export LOG_DIR="/config"
 
 if bashio::var.true "${DEBUG}"; then
     export DEBUG="true"
