@@ -90,7 +90,7 @@ SIGNED_REGISTERS = {
     32,                                  # V1 heating valve
     36, 37, 38, 39,                      # OAT, indoor ambient, suction line, outdoor coil
     40, 41, 43, 44, 45,                  # Condenser outlet, evap inlet, liquid, condenser mid, shell
-    50, 53, 54, 55, 56, 57,              # Unknown 50, DHW, OU ambient, evaporator, discharge, defrost accum
+    50, 53, 54, 55, 56, 57,              # Reported COP, DHW, OU ambient, evaporator, discharge, defrost accum
     91,                                  # Target flow temp
 }
 
@@ -192,8 +192,15 @@ REGISTER_NAMES = {
     # (≈12.9 bar) which is valid R32 discharge pressure.
     # Defrost-dynamic — drops from ~12 to ~3.5, spikes to 16.4.
     48: {"name": "Unknown 48",            "scale": 0.01, "unit": "bar",   "icon": "mdi:help-circle",          "class": None},
-    # UNCONFIRMED: 0-8.5 range, relatively stable during defrost. May not be a pressure.
-    50: {"name": "Unknown 50",            "scale": 0.01, "unit": "bar",   "icon": "mdi:help-circle",          "class": None},
+    # STATISTICAL (identified.md + 2026-04-05 analysis): Reported COP.
+    # Raw range 236-635 at scale ×0.01 = 2.36-6.35 (unitless ratio).
+    # identified.md: mean 4.23, negative correlation with flow temp (higher
+    # lift → lower COP). Cross-validated: reg_64/reg_27 implied COP ≈ 3.94,
+    # Δ = 7% from reg_50 — within measurement uncertainty.
+    # 2026-04-05: inversely correlated with power/heat output. Mode means:
+    # idle 52.9 (/100=5.3), heating 35.6 (/100=3.6), DHW 32.0 (/100=3.2).
+    # Higher COP at idle is physically expected (no lift, residual circulation).
+    50: {"name": "Reported COP",          "scale": 0.01, "unit": "",      "icon": "mdi:gauge",                "class": None},
 
     # --- Flow Rate ---
     # NAMED: Second sniffer matched to "Flow Rate" from HP installer page.
@@ -231,8 +238,17 @@ REGISTER_NAMES = {
     # heat output CONFIRMED at reg 64 (r=0.999 vs Q=flow×4.18×ΔT). This may
     # be a different calculation method or rated/nominal output. Do NOT promote
     # to CONFIRMED — conflicts with reg 64 evidence.
-    # Thermal output — primary measurement.
-    25: {"name": "Heat Output",           "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
+    # SUSPECT (2026-04-05): Raw range 3706-3939 across 77,090 samples — NEVER
+    # zero. Heat output should be 0 when compressor is off. Slight inverse
+    # correlation with load (idle: 3823, heating: 3793, DHW: 3785). Behaviour
+    # is more consistent with a refrigerant property (possibly low-side pressure
+    # in kPa at some scale) or a configuration/status register. Second sniffer
+    # labelled "heat_output" at 3764W — but that was a single snapshot, not
+    # time-series validated.
+    # DO NOT use for heat output calculations until resolved.
+    # Reg 64 was previously suggested as heat output (identified.md) but has
+    # conflicting evidence from defrost analysis (wild uint16 swings).
+    25: {"name": "Heat Output (suspect)", "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
     # UNCONFIRMED: Second sniffer labels "heat_output_2" at 1148W. Purpose
     # unclear — possibly a secondary thermal calculation or DHW-specific output.
     28: {"name": "Heat Output 2",         "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
@@ -242,17 +258,47 @@ REGISTER_NAMES = {
     # Normal: -160 to -190. Trigger: drops to -421. Counts up through 0 to +145/+246.
     # Resets to -40 to -57 after defrost. Likely integrates (evap_temp - threshold) × dt.
     57: {"name": "Defrost Accumulator",   "scale": 1,    "unit": "",      "icon": "mdi:snowflake-alert",      "class": None},
-    # CONFIRMED (defrost validated): Operating mode state machine.
-    #   2 = Normal heating, 6 = Pre-defrost, 7 = Defrost active, 8 = Post-defrost recovery
-    65: {"name": "Operating Mode",        "scale": 1,    "unit": "",      "icon": "mdi:state-machine",        "class": None},
+    # CONFIRMED (defrost validated + 2026-04-05 lifecycle analysis):
+    # HP controller operating state — full state machine.
+    # Startup lifecycle:  10 → 3 → 1 → 2  (standby → starting → init → running)
+    # Shutdown lifecycle: 2 → 4 → 10       (running → stopping → standby)
+    # Defrost lifecycle:  2 → 6 → 7 → 8 → 2 (running → pre-defrost → active → recovery → running)
+    #
+    # Complete enum:
+    #   1  = Initialising (~2 min, compressor ramping — 1.0% of time)
+    #   2  = Running (active heating or DHW — 22.7% of time)
+    #   3  = Starting (~30s transition from standby — 0.4%)
+    #   4  = Stopping (~40s transition to standby — 0.6%)
+    #   6  = Pre-defrost (from defrost validation)
+    #   7  = Defrost active (from defrost validation)
+    #   8  = Post-defrost recovery (from defrost validation)
+    #   10 = Standby (compressor off, resting — 75.2% of time)
+    #
+    # Values 1/3/4/10 from 53.6h analysis (77,075 samples).
+    # Values 6/7/8 from earlier defrost validation.
+    # This register is READ (FC 0x03) — reflects HP controller state,
+    # independent of hub mode command (reg 92).
+    65: {"name": "HP Controller State",   "scale": 1,    "unit": "",      "icon": "mdi:state-machine",        "class": None},
 
     # --- Counters ---
     # UNCONFIRMED: Monotonically increasing counter. Second sniffer saw 17780→18370
     # over ~5 min capture. Likely cycle runtime in seconds. Not verified.
     20: {"name": "Runtime Counter",       "scale": 1,    "unit": "s",     "icon": "mdi:timer-outline",        "class": None},
     63: {"name": "Energy Counter",        "scale": 1,    "unit": "Wh",    "icon": "mdi:counter",              "class": None},
-    # Wild uint16 swings during defrost — signed accumulator or bitfield. NOT power output.
-    64: {"name": "State Accumulator",     "scale": 1,    "unit": "",      "icon": "mdi:counter",              "class": None},
+    # CONFLICT: Two analyses disagree on this register.
+    # (1) identified.md: "Heat Output, CONFIRMED, r=0.999 vs flow×4.18×ΔT
+    #     thermal calculation". This analysis was based on HA history data
+    #     during normal heating operation.
+    # (2) Defrost validation: "Wild uint16 swings during defrost — signed
+    #     accumulator or bitfield. NOT power output." This analysis focused
+    #     on defrost events where the register showed erratic behaviour.
+    # (3) 2026-04-05 register_map: raw 0-65535 (full uint16 range).
+    # Resolution hypothesis: reg 64 may be a SIGNED register that represents
+    # heat output during normal operation but overflows/wraps during defrost
+    # when heat output goes negative (reverse cycle). If treated as signed
+    # int16, the 65535 values become -1 which would make physical sense.
+    # TODO: Add reg 64 to SIGNED_REGISTERS and re-analyse.
+    64: {"name": "Heat Output (unverified)", "scale": 1, "unit": "W",    "icon": "mdi:fire",                 "class": None},
 
     # --- Fan ---
     # CONFIRMED: Fan speed. Both sniffers agree. Second sniffer value 727-739
@@ -268,11 +314,18 @@ REGISTER_NAMES = {
     60: {"name": "Rated Elec Input",      "scale": 1,    "unit": "W",     "icon": "mdi:information",          "class": None},
 
     # --- DHW ---
-    # UNCONFIRMED: Second sniffer labels "dhw_tank_temp" at exactly 60.0°C
-    # (constant min=max=600 raw). 60°C is the standard DHW target setpoint.
-    # Hypothesis: this is the DHW TARGET SETPOINT, not the actual cylinder
-    # temp (which is reg 45). Need to observe whether this value changes when
-    # DHW target is adjusted via the Octopus app.
+    # REVISED (2026-04-05): NOT a constant 60°C as second sniffer suggested.
+    # Raw range 0-600 across 53.6h. Mode-dependent behaviour:
+    #   Idle:    mean ~12 (1.2°C scaled — essentially zero/noise)
+    #   Heating: mean ~428 (42.8°C)
+    #   DHW:     mean ~554 (55.4°C)
+    # Rises to 600 (60.0°C) only at peak DHW. This is NOT the cylinder temp
+    # (that is reg 45, confirmed). Behaviour suggests this is either:
+    # (a) a demand/target that tracks operating mode, or
+    # (b) a calculated condensing temperature.
+    # identified.md labelled it "Compressor Frequency" (×0.1, 0-60 Hz) which
+    # would also fit the 0-600 range — but conflicts with reg 19 (confirmed
+    # compressor freq). Keeping current name pending further investigation.
     53: {"name": "DHW Tank Temp",         "scale": 0.1,  "unit": "°C",    "icon": "mdi:water-boiler",         "class": "temperature"},
     # NAMED: Second sniffer labels "outdoor_unit_ambient" at 1.9°C. Close to
     # but distinct from reg 36 (confirmed OAT at 2.5°C). Likely the outdoor
@@ -282,6 +335,13 @@ REGISTER_NAMES = {
     54: {"name": "Outdoor Ambient Raw",   "scale": 1,    "unit": "",      "icon": "mdi:thermometer",          "class": None},
 
     # --- Hub Control Registers ---
+    # CONFIRMED (2026-04-05 analysis): Hub operating mode command.
+    #   1 = Idle (no demand — 77.9% of observed time)
+    #   2 = Space Heating (19.6% — 25-95min demand bursts)
+    #   4 = DHW / Hot Water (2.5% — triggers ~3min after HW schedule ON)
+    # 33 transitions captured over 53.6h. DHW confirmed by exact alignment
+    # with Octopus HW schedule binary sensor (delay 169-175s, 2 events).
+    # During DHW, reg_91 ramps from WC setpoint (38-42°C) to 65°C.
     92: {"name": "Mode Demand",           "scale": 1,    "unit": "",      "icon": "mdi:thermostat",           "class": None},
     210:{"name": "Status Register",       "scale": 1,    "unit": "",      "icon": "mdi:information",          "class": None},
 
@@ -562,23 +622,34 @@ class OperatingStateDetector:
         prev_state = self.current_state
 
         r19 = registers.get(19, 0)
-        r25 = registers.get(25, 0)
-        r29 = to_signed(registers.get(29, 0))   # HP LWT (condenser outlet)
-        r30 = to_signed(registers.get(30, 0))   # Condenser temp (refrigerant-side)
-        r57 = to_signed(registers.get(57, 0))
-        r92 = registers.get(92, 0)
-        delta = r29 - r30  # LWT vs condenser — inverts during defrost
+        r29 = to_signed(registers.get(29, 0))   # Condenser inlet temp
+        r30 = to_signed(registers.get(30, 0))   # Condenser outlet temp
+        r57 = to_signed(registers.get(57, 0))    # Defrost accumulator
+        r65 = registers.get(65, 0)               # HP controller state
+        r92 = registers.get(92, 0)               # Hub mode demand
+        delta = r29 - r30  # Condenser ΔT — inverts during defrost
 
-        if r19 == 0 and r25 == 0:
+        # Primary detection: use reg_65 HP controller state when available
+        if r65 == 10 and r19 == 0:
             new_state = "OFF"
-        elif delta < 0 and r19 > 0:
+        elif r65 == 3:
+            new_state = "STARTING"
+        elif r65 == 1:
+            new_state = "INITIALISING"
+        elif r65 == 4:
+            new_state = "STOPPING"
+        # Defrost states (from defrost validation)
+        elif r65 in (6, 7, 8) or (delta < 0 and r19 > 0):
             new_state = "DEFROST"
+        # Mode-specific active states
         elif r92 == 4 and r19 > 0:
             new_state = "DHW"
         elif r92 == 2 and r19 > 0:
             new_state = "HEATING"
         elif r92 == 2 and r19 == 0:
             new_state = "HEATING_IDLE"
+        elif r92 == 1 and r19 == 0:
+            new_state = "IDLE"
         elif r19 > 0 and r19 < 15:
             new_state = "OIL_RECOVERY"
         elif r19 > 0:
@@ -592,9 +663,9 @@ class OperatingStateDetector:
                 "from": prev_state, "to": new_state,
                 "timestamp": timestamp, "duration_s": round(duration, 1),
                 "trigger_registers": {
-                    "reg_19": r19, "reg_25": r25, "reg_29": r29,
+                    "reg_19": r19, "reg_29": r29,
                     "reg_30": r30, "delta": round(delta, 1),
-                    "reg_57": r57, "reg_92": r92,
+                    "reg_57": r57, "reg_65": r65, "reg_92": r92,
                 }
             })
             self.state_entered_at = timestamp

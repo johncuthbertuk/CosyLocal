@@ -13,7 +13,7 @@ cross-validation is incomplete.
 | 26 | Electrical Input Power | ×1 | W | 0–2956 | r=0.996 vs reg_27 — near-identical. May be L1 phase or raw vs filtered reading |
 | 56 | Heat Output (alt) | ×10 | W | 0–6290 | Range fits 6 kW unit; median implied COP (reg_56×10 / reg_26) = 3.94 vs reg_50 mean 4.23 — 7% delta |
 | 60 | Condensing Pressure | ×1 | kPa | 1100–2000 | 11–20 bar matches R290 saturation at 30–50°C condensing temperature. Currently labelled "Rated Elec Input" in code — conflicts with this identification |
-| 65 | Month | ×1 | month | 1–12 | Discrete values observed: 1, 2, 4, 9, 10, 12 — consistent with months of logging history |
+| 66 | Operating Sub-State | ×1 | enum | 0 – 5 | Discrete values 0–5. Reg 92 is now CONFIRMED as the primary mode command (1=Idle, 2=Heating, 4=DHW). Reg 66 may be a sub-state or redundant. Low priority. |
 
 ### Notes on Medium-Confidence Registers
 
@@ -32,8 +32,9 @@ output values (0–6290 W) for a 6 kW rated unit. Cross-validates against COP wi
 pressure (kPa). If values vary with operating conditions, it cannot be a rated
 constant — requires further logging to resolve.
 
-**reg_65**: If this is indeed a month register, it implies the outdoor unit maintains
-a real-time clock. Other time registers (day, hour, minute) may exist nearby.
+**reg_66**: Reg 92 is now confirmed as the primary mode command register. Reg 66's
+discrete values (0–5) may represent a sub-state or secondary indicator. Low priority
+for investigation.
 
 ## Requires Operational Confirmation
 
