@@ -30,6 +30,8 @@ analysis.
 | 64 | Heat Output | ×1 | W | — | CONFIRMED | r=0.999 vs flow×ΔT thermal calculation |
 | 66 | Operating Mode | ×1 | enum | 0 – 3 | STATISTICAL | Discrete values 0/1/2/3 — likely Off / Heating / DHW / Defrost. Requires operational confirmation |
 | 91 | Target Flow Temp | ×0.1 | °C | — | CONFIRMED | Hub → outdoor unit setpoint |
+| 92 | Mode Demand | ×1 | enum | 1, 2, 4 | CONFIRMED | 1=Idle, 2=Heating, 4=DHW. 33 transitions over 53.6h; DHW onset matched HW schedule within 3 min (2 events). Used by state machine. |
+| 65 | HP Controller State | ×1 | enum | 1–10 | CONFIRMED | Startup: 10→3→1→2 (standby→starting→init→running). Shutdown: 2→4→10. Defrost: 2→6→7→8→2. 77,075 samples. |
 
 ## Cross-Validation: COP
 
@@ -44,6 +46,13 @@ reg_50 mean COP  = 4.23
 
 Note: reg_64 (Heat Output) is used here rather than reg_56, which was an earlier
 candidate from a different unit's register map.
+
+## Registers Under Review
+
+| Register | Current Name | Issue | Reference |
+|----------|-------------|-------|-----------|
+| 25 | Heat Output | Raw 3706-3939, never zero — inconsistent with heat output. May be pressure/config. | 2026-04-05 analysis |
+| 64 | State Accumulator | Conflicting evidence: r=0.999 vs thermal calc (identified.md) vs wild uint16 swings (defrost validation). Possibly signed overflow. | Both analyses |
 
 ## Method
 

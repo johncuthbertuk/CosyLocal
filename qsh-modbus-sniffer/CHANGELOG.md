@@ -1,5 +1,39 @@
 # Changelog
 
+## 4.6.4 — 2026-04-05
+
+### Register map update — Mode registers confirmed, state machine enhanced
+
+53.6-hour Modbus capture analysis (765,506 frames) with cross-reference
+against HA history, HW schedule, and 12 room sensors.
+
+**High priority:**
+- Reg 92 (Mode Demand): Documented enum values 1=Idle, 2=Heating, 4=DHW.
+  DHW confirmed against HW schedule binary sensor (2 events, ~3min delay).
+- Reg 65: Expanded from 4 defrost values to full 8-value lifecycle enum
+  (1/2/3/4/6/7/8/10). Renamed "Operating Mode" → "HP Controller State"
+  to distinguish from reg 92. Disproved "Month" hypothesis in unknown.md.
+- State machine (OperatingStateDetector): Fixed dead-code bug where
+  `r25 == 0` could never trigger (reg 25 raw is always 3706-3939).
+  Added reg 65 for startup/stopping sub-state detection. New states:
+  OFF, STARTING, INITIALISING, STOPPING, IDLE.
+
+**Medium priority:**
+- Reg 25: Flagged "Heat Output" label as suspect (never zero at idle).
+- Reg 50: Updated from "Unknown 50" to "Reported COP" (converging evidence).
+- Reg 53: Revised comment — NOT a constant 60°C, varies by mode.
+- Reg 64: Documented conflict between identified.md and defrost validation.
+
+**Documentation:**
+- Updated identified.md with reg 92 and reg 65 CONFIRMED entries.
+- Removed disproven reg 65 "Month" hypothesis from unknown.md.
+- Added "Registers Under Review" section to identified.md.
+
+Files affected:
+- `rootfs/opt/qsh/cosy6_decoder.py` (REGISTER_NAMES, OperatingStateDetector)
+- `identified.md`
+- `unknown.md`
+
 ## 4.6.3 — 2026-04-03
 
 ### Log path fix — write to addon_config persistent storage
