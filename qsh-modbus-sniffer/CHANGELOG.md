@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.6.5 — 2026-04-10
+
+### Flow Rate sensor improvement (community contribution)
+
+- Reg 47 (Flow Rate): Changed unit from `l/min` to `L/min` (SI-recommended
+  uppercase symbol) and added `device_class: volume_flow_rate` for proper
+  Home Assistant integration — enables long-term statistics, unit conversion
+  support, and correct entity categorisation.
+
+Contributed by Adam Curtis (#15).
+
+Files affected:
+- `rootfs/opt/qsh/cosy6_decoder.py` (REGISTER_NAMES)
+
 ## 4.6.4 — 2026-04-05
 
 ### Register map update — Mode registers confirmed, state machine enhanced
