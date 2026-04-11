@@ -186,12 +186,16 @@ REGISTER_NAMES = {
     # Second sniffer matched from HP installer page "Suction Pressure".
     # Second sniffer value 6080 kPa (≈60.8 bar). Plausible for R32 suction side.
     24: {"name": "Suction Pressure",      "scale": 0.1,  "unit": "kPa",   "icon": "mdi:gauge",                "class": "pressure"},
-    # NAMED: Second sniffer matched to "Discharge Pressure" from HP installer
-    # page display. Labelled "energy_counter_2" in their register_map but
-    # Stuart noted "Discharge — Unknown 48". Value 1295 could be kPa
-    # (≈12.9 bar) which is valid R32 discharge pressure.
-    # Defrost-dynamic — drops from ~12 to ~3.5, spikes to 16.4.
-    48: {"name": "Unknown 48",            "scale": 0.01, "unit": "bar",   "icon": "mdi:help-circle",          "class": None},
+    # CONFIRMED (defrost analysis 2026-04-11, reinstated from 4.4.0 demotion):
+    # Discharge (high-side) pressure. Second sniffer matched "Discharge Pressure"
+    # from HP installer page. Two defrost events confirm:
+    #   Normal heating: ~13 bar (R290 sat ≈ 35°C, consistent with 30°C flow)
+    #   Defrost (compressor off): drops to ~5 bar (equalized, R290 sat ≈ 5°C)
+    #   Post-defrost recovery: 9-12 bar over ~10 min
+    # Scale 0.01: raw 450-1350 → 4.5-13.5 bar. R290 saturation cross-check:
+    # 13 bar → 35.1°C (matches condenser inlet R29). 5 bar → 4.8°C (matches
+    # equalized evaporator R55). Closed.
+    48: {"name": "Discharge Pressure",   "scale": 0.01, "unit": "bar",   "icon": "mdi:gauge-full",           "class": "pressure"},
     # STATISTICAL (identified.md + 2026-04-05 analysis): Reported COP.
     # Raw range 236-635 at scale ×0.01 = 2.36-6.35 (unitless ratio).
     # identified.md: mean 4.23, negative correlation with flow temp (higher
@@ -213,12 +217,24 @@ REGISTER_NAMES = {
     # CONFIRMED (defrost validated): Valve position during heating. Scale ×0.1 confirmed
     # (Feb raw 240-258 → HA 24.0-25.8, Mar range 0-115).
     32: {"name": "V1 Heating Valve",      "scale": 0.1,  "unit": "%",     "icon": "mdi:valve",                "class": None},
-    # CONFIRMED (defrost validated): Reversing valve. Scale ×0.1 confirmed
-    # (Feb raw 1000 → HA 100.0, raw 502 → HA 50.2).
-    # Normal heating: 100%. Defrost entry/exit: drops to 50% then 0% (full actuation).
+    # CONFIRMED (defrost validated): Reversing valve / defrost status register.
+    # Scale ×0.1 from Feb sniffer (raw 1000 → 100.0, raw 502 → 50.2).
+    # NOTE: From HA gateway history, this register shows bit-packed behaviour
+    # that the ×0.1 scaling partially obscures:
+    #   96.0 = Normal heating (stable, long duration)
+    #   48.0 = Standby / transition state (brief)
+    #   0.0  = Off / compressor stopped
+    #   6464.x / 6494.x / 6525.x = Defrost transition (bit 12 high = valve
+    #         solenoid energised: 2^12 = 4096 + lower status bits)
+    #   88.x / 92.x = Post-defrost recovery states
     # Multiple actuations per night — not only during confirmed defrost events.
     34: {"name": "Reversing Valve",       "scale": 0.1,  "unit": "%",     "icon": "mdi:snowflake-melt",       "class": None},
-    # UNCONFIRMED: 0-103% range. Previously "V4 Inverter". May be inverter duty or valve.
+    # UNCONFIRMED: 0-103% range. May be inverter duty cycle or valve position.
+    # NOTE (2026-04-11): Shows same 6464.x bit pattern as R34 during defrost
+    # transitions. Normal operation: 8.0-9.6 (slowly incrementing — possibly
+    # inverter board temperature or internal counter at ×0.1 scale).
+    # The matching 6464 value shared with R34 confirms a controller-wide
+    # defrost-active bitmask read from multiple register addresses.
     35: {"name": "V4 Inverter",           "scale": 0.1,  "unit": "%",     "icon": "mdi:sine-wave",            "class": None},
     # CONFIRMED (defrost validated): EEV position. 54-75% heating, drops to 0% during defrost.
     # Reopens during recovery. Classic EEV behaviour.
@@ -346,7 +362,21 @@ REGISTER_NAMES = {
     210:{"name": "Status Register",       "scale": 1,    "unit": "",      "icon": "mdi:information",          "class": None},
 
     # --- Unidentified (tracked for future analysis) ---
-    67: {"name": "Unknown 67",            "scale": 1,    "unit": "",      "icon": "mdi:help-circle",          "class": None},
+    # IDENTIFIED (defrost analysis 2026-04-11): Compressor runtime counter.
+    # Counts seconds of compressor operation since last defrost.
+    # Event 2: accumulated 1,648 increments over 1,650 seconds (1:1 confirmed).
+    # Resets to zero at defrost initiation — this is the "time since last
+    # defrost" input to the native defrost demand algorithm.
+    # During defrost itself, shows sub-cycling (0→140 repeating), suggesting
+    # the controller uses this counter internally to time defrost phases.
+    # Unsigned — not in SIGNED_REGISTERS.
+    67: {"name": "Compressor Runtime",    "scale": 1,    "unit": "s",     "icon": "mdi:timer-outline",        "class": "duration"},
+    # UNRESOLVED (2026-04-11): Binary flag, 43 samples over 10 days, all 0.0.
+    # Same slow poll rate as R210 (Status Register) and R77 (Config Param) —
+    # these three registers share a polling group, suggesting they are
+    # configuration or status registers read on a long cycle.
+    # Candidate identities: defrost demand flag, error code, DHW priority,
+    # or compressor protection latch. Never triggered during observation.
     75: {"name": "Unknown 75",            "scale": 1,    "unit": "",      "icon": "mdi:help-circle",          "class": None},
     77: {"name": "Config Param 77",       "scale": 1,    "unit": "",      "icon": "mdi:cog",                  "class": None},
 }

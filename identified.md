@@ -32,6 +32,8 @@ analysis.
 | 91 | Target Flow Temp | ×0.1 | °C | — | CONFIRMED | Hub → outdoor unit setpoint |
 | 92 | Mode Demand | ×1 | enum | 1, 2, 4 | CONFIRMED | 1=Idle, 2=Heating, 4=DHW. 33 transitions over 53.6h; DHW onset matched HW schedule within 3 min (2 events). Used by state machine. |
 | 65 | HP Controller State | ×1 | enum | 1–10 | CONFIRMED | Startup: 10→3→1→2 (standby→starting→init→running). Shutdown: 2→4→10. Defrost: 2→6→7→8→2. 77,075 samples. |
+| 48 | Discharge Pressure | ×0.01 | bar | 4.5–13.5 | CONFIRMED | Reinstated from 4.4.0 demotion. Two defrost events confirm: ~13 bar normal (R290 sat 35°C = matches condenser inlet), ~5 bar defrost (equalized, R290 sat 5°C = matches evaporator). Second sniffer matched HP installer page label. |
+| 67 | Compressor Runtime | ×1 | s | 0–37,000+ | IDENTIFIED | Seconds since last defrost. 1:1 confirmed: 1,648 counts over 1,650 seconds (Event 2). Resets at defrost initiation. Sub-cycles 0→140 during defrost phase timing. |
 
 ## Cross-Validation: COP
 

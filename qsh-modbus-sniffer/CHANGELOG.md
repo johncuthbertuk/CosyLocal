@@ -1,5 +1,35 @@
 # Changelog
 
+## 4.7.0 — 2026-04-11
+
+### Register map update — 10-day defrost event analysis
+
+Two defrost events analysed from 10-day HA history capture (31 Mar – 11 Apr
+2026, 38 entities, ~850k samples). Cross-correlation during defrost events
+identified unknown registers and confirmed defrost behaviour patterns.
+
+**Register promotions / identifications:**
+- Reg 48: Reinstated "Discharge Pressure" (demoted to "Unknown 48" in 4.4.0).
+  Two defrost events confirm: ~13 bar normal heating (R290 sat 35°C, matches
+  condenser), ~5 bar during defrost (equalized). Added device_class "pressure".
+- Reg 67: "Unknown 67" → "Compressor Runtime" (seconds counter). 1:1 second
+  counting confirmed by Event 2 time analysis. Resets at defrost initiation.
+  Added device_class "duration", unit "s".
+
+**Documentation updates:**
+- Reg 34 (Reversing Valve): Documented bit-packed status values from HA
+  gateway perspective (96=heating, 48=standby, 6464.x=defrost transition
+  with bit 12 = valve solenoid).
+- Reg 35 (V4 Inverter): Documented shared 6464 defrost bitmask pattern.
+- Reg 75: Added observation notes (43 samples, all 0.0, unresolved).
+- Reg 57 (Defrost Accumulator): Two-event defrost characterisation added
+  to register_map_confirmed document (not in this changeset).
+
+Files affected:
+- `rootfs/opt/qsh/cosy6_decoder.py` (REGISTER_NAMES: R48, R67, R75, R34, R35)
+- `identified.md` (R48 and R67 added)
+- `CHANGELOG.md`
+
 ## 4.6.5 — 2026-04-10
 
 ### Flow Rate sensor improvement (community contribution)
