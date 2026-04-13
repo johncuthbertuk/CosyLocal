@@ -314,7 +314,7 @@ REGISTER_NAMES = {
     # when heat output goes negative (reverse cycle). If treated as signed
     # int16, the 65535 values become -1 which would make physical sense.
     # TODO: Add reg 64 to SIGNED_REGISTERS and re-analyse.
-    64: {"name": "Heat Output (unverified)", "scale": 1, "unit": "W",    "icon": "mdi:fire",                 "class": None},
+    64: {"name": "Heat Output (unverified)", "scale": 1, "unit": "W",    "icon": "mdi:fire",                 "class": "power"},
 
     # --- Fan ---
     # CONFIRMED: Fan speed. Both sniffers agree. Second sniffer value 727-739
