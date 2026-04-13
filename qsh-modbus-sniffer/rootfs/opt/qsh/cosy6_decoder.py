@@ -91,6 +91,7 @@ SIGNED_REGISTERS = {
     36, 37, 38, 39,                      # OAT, indoor ambient, suction line, outdoor coil
     40, 41, 43, 44, 45,                  # Condenser outlet, evap inlet, liquid, condenser mid, shell
     50, 53, 54, 55, 56, 57,              # Reported COP, DHW, OU ambient, evaporator, discharge, defrost accum
+    64,                                  # Heat Output (negative during reverse-cycle defrost)
     91,                                  # Target flow temp
 }
 
@@ -189,8 +190,16 @@ REGISTER_NAMES = {
     # CONFIRMED (defrost analysis 2026-04-11, reinstated from 4.4.0 demotion):
     # Discharge (high-side) pressure. Second sniffer matched "Discharge Pressure"
     # from HP installer page. Two defrost events confirm:
-    #   Normal heating: ~13 bar (R290 sat ≈ 35°C, consistent with 30°C flow)
-    #   Defrost (compressor off): drops to ~5 bar (equalized, R290 sat ≈ 5°C)
+    #   Normal heating (OAT 6–11°C, Stu Apr 2026): ~13 bar (R290 sat ≈ 35°C,
+    #     consistent with 30°C flow)
+    #   Cold-OAT heating peak (OAT ~2.6°C, AdamLC 13 Apr 2026): 20.83 bar
+    #     (R290 sat ≈ 56°C, consistent with elevated flow demand at cold OAT)
+    #   Defrost entry (compressor briefly off): drops to ~5 bar (Stu Apr)
+    #     / 3.85 bar (AdamLC at OAT 2.6°C, R290 sat ≈ −2°C, equalized evap)
+    #   Defrost active (compressor reversed): climbs to ~16 bar (R290 sat
+    #     ≈ 47°C) as reverse-cycle high-side pressurises the outdoor coil
+    #     to melt ice (AdamLC ~4 min after entry)
+    #   Full observed envelope across two installations: 3.85–20.83 bar
     #   Post-defrost recovery: 9-12 bar over ~10 min
     # Scale 0.01: raw 450-1350 → 4.5-13.5 bar. R290 saturation cross-check:
     # 13 bar → 35.1°C (matches condenser inlet R29). 5 bar → 4.8°C (matches
@@ -301,20 +310,31 @@ REGISTER_NAMES = {
     # over ~5 min capture. Likely cycle runtime in seconds. Not verified.
     20: {"name": "Runtime Counter",       "scale": 1,    "unit": "s",     "icon": "mdi:timer-outline",        "class": None},
     63: {"name": "Energy Counter",        "scale": 1,    "unit": "Wh",    "icon": "mdi:counter",              "class": None},
-    # CONFLICT: Two analyses disagree on this register.
-    # (1) identified.md: "Heat Output, CONFIRMED, r=0.999 vs flow×4.18×ΔT
-    #     thermal calculation". This analysis was based on HA history data
-    #     during normal heating operation.
-    # (2) Defrost validation: "Wild uint16 swings during defrost — signed
-    #     accumulator or bitfield. NOT power output." This analysis focused
-    #     on defrost events where the register showed erratic behaviour.
-    # (3) 2026-04-05 register_map: raw 0-65535 (full uint16 range).
-    # Resolution hypothesis: reg 64 may be a SIGNED register that represents
-    # heat output during normal operation but overflows/wraps during defrost
-    # when heat output goes negative (reverse cycle). If treated as signed
-    # int16, the 65535 values become -1 which would make physical sense.
-    # TODO: Add reg 64 to SIGNED_REGISTERS and re-analyse.
-    64: {"name": "Heat Output (unverified)", "scale": 1, "unit": "W",    "icon": "mdi:fire",                 "class": "power"},
+    # CONFIRMED (2026-04-13, two-installation cross-validation — resolves 4.7.0 conflict):
+    # Heat Output in watts, signed Int16. Positive during heating (r=0.999 vs
+    # flow × 4.18 × ΔT thermal calculation, original identified.md analysis).
+    # Negative during reverse-cycle defrost and at compressor-start transients.
+    # Evidence (AdamLC Cosy 6, 13 Apr 2026, two defrost cycles at OAT ~2.6°C):
+    #   Defrost has two distinct pressure phases, verified from raw timestamps:
+    #     Phase 1 — defrost entry, compressor briefly off. R48 equalizes to
+    #       ~3.85 bar (R290 sat −2°C, consistent with equalized evaporator).
+    #       R64 near zero or mildly positive (+155 W at Event 1, +5923 W at
+    #       Event 2 — compressor decelerating from heating).
+    #     Phase 2 — compressor running in reverse (~3.8–4.1 min later). R48
+    #       climbs to ~16 bar as reverse-cycle high-side pressurises the
+    #       outdoor coil to melt ice. R64 reaches peak negative:
+    #         Event 1: −8,276 W @ 01:32:58 (R48=16.24 bar co-incident)
+    #         Event 2: −8,870 W @ 05:36:50 (R48=16.06 bar co-incident)
+    #       Mean −5.8 / −5.9 kW sustained ~5.5 min per cycle.
+    #   Raw register values at R64 peak-negative: 57,260 and 56,666 — classic
+    #   unsigned-overflow signature of signed Int16.
+    # Corroborating evidence (Stu Cosy 6, 13 Apr 2026): six compressor-start
+    #   transients, signed values −4 to −893 W, durations 7–76 s. Correlate
+    #   with R65 state sequence 10 → 3 → 1 → 2 (standby → starting → init →
+    #   running). Same signed-overflow signature at much smaller magnitude.
+    # Previously named "Heat Output (unverified)" with a TODO. The TODO is
+    # now closed: reg 64 added to SIGNED_REGISTERS above.
+    64: {"name": "Heat Output",           "scale": 1,    "unit": "W",     "icon": "mdi:fire",                 "class": "power"},
 
     # --- Fan ---
     # CONFIRMED: Fan speed. Both sniffers agree. Second sniffer value 727-739
@@ -362,15 +382,24 @@ REGISTER_NAMES = {
     210:{"name": "Status Register",       "scale": 1,    "unit": "",      "icon": "mdi:information",          "class": None},
 
     # --- Unidentified (tracked for future analysis) ---
-    # IDENTIFIED (defrost analysis 2026-04-11): Compressor runtime counter.
-    # Counts seconds of compressor operation since last defrost.
-    # Event 2: accumulated 1,648 increments over 1,650 seconds (1:1 confirmed).
-    # Resets to zero at defrost initiation — this is the "time since last
-    # defrost" input to the native defrost demand algorithm.
-    # During defrost itself, shows sub-cycling (0→140 repeating), suggesting
-    # the controller uses this counter internally to time defrost phases.
+    # PROVISIONAL (downgraded 2026-04-13 — firmware-dependent):
+    # On Stu installation (Cosy 6, firmware as of 4.7.0 ship): accumulates
+    # seconds of compressor operation since last defrost (Event 2:
+    # 1,648 increments over 1,650 s). Resets to zero at defrost initiation.
+    # During defrost itself, shows sub-cycling (0→140 repeating).
+    # On AdamLC installation (Cosy 6, firmware revision not yet queried):
+    # R67 remains at 0 across an entire 24h capture (~107k rows), including
+    # through two confirmed defrost cycles and extensive HEATING-state
+    # operation. Cannot be universal Cosy 6 semantics at this time.
+    # Action: query AdamLC firmware revision (unit sticker or controller
+    # status register) and compare against Stu's to isolate cause. Firmware
+    # delta is the leading hypothesis; confirming or ruling it out is the
+    # fastest path to resolving provisional status.
+    # Kept as "Runtime Counter" (rather than reverting to "Unknown 67") to
+    # preserve existing HA automations from 4.7.0. Marked provisional until
+    # a third installation (Connor or other) confirms or refutes.
     # Unsigned — not in SIGNED_REGISTERS.
-    67: {"name": "Compressor Runtime",    "scale": 1,    "unit": "s",     "icon": "mdi:timer-outline",        "class": "duration"},
+    67: {"name": "Runtime Counter (provisional)", "scale": 1, "unit": "s", "icon": "mdi:timer-outline",    "class": "duration"},
     # UNRESOLVED (2026-04-11): Binary flag, 43 samples over 10 days, all 0.0.
     # Same slow poll rate as R210 (Status Register) and R77 (Config Param) —
     # these three registers share a polling group, suggesting they are

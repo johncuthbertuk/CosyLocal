@@ -1,5 +1,35 @@
 # Changelog
 
+## 4.7.2 — 2026-04-13
+
+### R64 — signed Int16 fix, resolves 4.7.0 conflict
+
+Register 64 added to `SIGNED_REGISTERS` and renamed "Heat Output (unverified)"
+→ "Heat Output". The 4.7.0 conflict between "CONFIRMED heat output" and
+"wild uint16 swings in defrost" is resolved: both described the same signed
+Int16 register in its positive and negative ranges. TODO in decoder closed.
+
+Cross-installation evidence (AdamLC and Stu Cosy 6, 13 Apr 2026): peak
+defrost values −8,276 W and −8,870 W; startup transients −4 to −893 W. Full
+evidence and two-phase defrost physics in decoder comments.
+
+### R67 — provisional downgrade
+
+"Compressor Runtime" → "Runtime Counter (provisional)". AdamLC 24h capture
+shows R67 pinned at 0 through two defrost cycles and all HEATING operation,
+contradicting the 1:1 accumulation observed on Stu's unit. Held provisional
+pending third installation. Name retained to preserve 4.7.0 HA automations.
+
+### R48 — evidence envelope widened
+
+Discharge Pressure comment now cites full observed envelope 3.85–20.83 bar
+across two installations and two OAT regimes. Two-phase defrost pressure
+behaviour documented (equalized entry → reverse-cycle high-side). No
+register-dict changes.
+
+Files affected: `rootfs/opt/qsh/cosy6_decoder.py`, `identified.md`,
+`CHANGELOG.md`, `config.yaml`, `build.yaml` (if versioned).
+
 ## 4.7.1 — 2026-04-13
 
 Register 64 is still unverified, but suspected to be heat output power - state class changed to power state.
