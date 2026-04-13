@@ -27,13 +27,13 @@ analysis.
 | 50 | Reported COP | ×0.01 | — | 2.75 – 5.97 | STATISTICAL | Mean 4.23 consistent with live COP; negative correlation with flow temp confirms higher lift → lower COP. Previously labelled "Suction Pressure" |
 | 51 | Compressor Speed | ×1 | % | 0 – 100 | STATISTICAL | Exact 0–100 range; correlates with compressor frequency |
 | 53 | Compressor Frequency | ×0.1 | Hz | 0 – 60 | STATISTICAL | Raw 0–600 = 0–60 Hz; r=0.708 vs compressor speed % |
-| 64 | Heat Output | ×1 | W | — | CONFIRMED | r=0.999 vs flow×ΔT thermal calculation |
+| 64 | Heat Output | ×1 (signed Int16) | W | Observed: −8,870 to +6,745 (AdamLC 24h, 13 Apr 2026). Theoretical Int16: ±32,767 | CONFIRMED | r=0.999 vs flow×ΔT thermal calculation (heating, original identified.md analysis). Signed interpretation confirmed by two installations 13 Apr 2026: AdamLC defrost peaks −8,276 W / −8,870 W (raw 57,260 / 56,666); Stu startup transients −4 to −893 W. R48 phases during defrost validate reverse-cycle physics (3.85 bar equalized at entry, ~16 bar at peak-negative R64). |
 | 66 | Operating Mode | ×1 | enum | 0 – 3 | STATISTICAL | Discrete values 0/1/2/3 — likely Off / Heating / DHW / Defrost. Requires operational confirmation |
 | 91 | Target Flow Temp | ×0.1 | °C | — | CONFIRMED | Hub → outdoor unit setpoint |
 | 92 | Mode Demand | ×1 | enum | 1, 2, 4 | CONFIRMED | 1=Idle, 2=Heating, 4=DHW. 33 transitions over 53.6h; DHW onset matched HW schedule within 3 min (2 events). Used by state machine. |
 | 65 | HP Controller State | ×1 | enum | 1–10 | CONFIRMED | Startup: 10→3→1→2 (standby→starting→init→running). Shutdown: 2→4→10. Defrost: 2→6→7→8→2. 77,075 samples. |
 | 48 | Discharge Pressure | ×0.01 | bar | 4.5–13.5 | CONFIRMED | Reinstated from 4.4.0 demotion. Two defrost events confirm: ~13 bar normal (R290 sat 35°C = matches condenser inlet), ~5 bar defrost (equalized, R290 sat 5°C = matches evaporator). Second sniffer matched HP installer page label. |
-| 67 | Compressor Runtime | ×1 | s | 0–37,000+ | IDENTIFIED | Seconds since last defrost. 1:1 confirmed: 1,648 counts over 1,650 seconds (Event 2). Resets at defrost initiation. Sub-cycles 0→140 during defrost phase timing. |
+| 67 | Runtime Counter (provisional) | ×1 | s | 0–37,000+ on Stu unit; 0 on AdamLC unit | PROVISIONAL | Stu Cosy 6: seconds since last defrost, 1:1 confirmed (1,648 counts over 1,650 s, Event 2 Apr 2026). AdamLC Cosy 6: register reads 0 throughout 24h capture including both defrost cycles — firmware-dependent. Held provisional pending third installation. |
 
 ## Cross-Validation: COP
 
@@ -54,7 +54,6 @@ candidate from a different unit's register map.
 | Register | Current Name | Issue | Reference |
 |----------|-------------|-------|-----------|
 | 25 | Heat Output | Raw 3706-3939, never zero — inconsistent with heat output. May be pressure/config. | 2026-04-05 analysis |
-| 64 | State Accumulator | Conflicting evidence: r=0.999 vs thermal calc (identified.md) vs wild uint16 swings (defrost validation). Possibly signed overflow. | Both analyses |
 
 ## Method
 
