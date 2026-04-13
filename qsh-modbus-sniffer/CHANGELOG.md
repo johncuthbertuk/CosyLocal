@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.1 — 2026-04-13
+
+Register 64 is still unverified, but suspected to be heat output power - state class changed to power state.
+
 ## 4.7.0 — 2026-04-11
 
 ### Register map update — 10-day defrost event analysis
