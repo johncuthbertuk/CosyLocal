@@ -1,5 +1,32 @@
 # Changelog
 
+## 4.8.0 — 2026-06-19
+
+### Reg 92 — promoted to CONFIRMED DHW demand state
+
+"Mode Demand" → "DHW Demand State". The earlier "4 = normal/standby" reading
+was wrong: 4 is the ACTIVE hot-water state. Value map now annotated inline:
+`1` = idle (CONFIRMED), `4` = hot water active (CONFIRMED), `2` = non-idle /
+non-HW demand (space-heat candidate, UNCONFIRMED — left annotated, not
+classified pending a reg 92 = 2 capture alongside a known space-heating call).
+
+Evidence: cross-validated against the Octopus Kraken WATER-zone
+`heatDemand` / `relaySwitchedOn` signal (INSTRUCTION-351 / QSH) — reg 92 → 4
+co-incident with API `hot_water_active=True`, holds for the cycle, reverts to
+1 on completion. Time-series confirmation (history-6.csv, 18 Jun 2026):
+1 → 4 at 23:01:50Z, held ~39 min, → 1 at 23:40:35Z.
+
+### Derived `hot_water_active` binary_sensor
+
+New MQTT discovery entity (`unique_id` `qsh_modbus_reg_92_hw_active`,
+`device_class: heat`), ON iff reg 92 == 4 (explicit `== 4`, never `!= 1`).
+Published in addition to the raw reg 92 sensor, which is unchanged. Same
+availability topic + `expire_after` as the register sensors, so a sniffer /
+MQTT dropout marks it `unavailable` rather than collapsing to a stale OFF.
+Only emitted when reg 92 is present in the decoded frame.
+
+Passive-only: read-side decode + MQTT publish. No bus writes added.
+
 ## 4.7.2 — 2026-04-13
 
 ### R64 — signed Int16 fix, resolves 4.7.0 conflict

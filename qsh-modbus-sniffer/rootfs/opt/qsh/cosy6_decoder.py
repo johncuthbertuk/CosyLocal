@@ -371,14 +371,27 @@ REGISTER_NAMES = {
     54: {"name": "Outdoor Ambient Raw",   "scale": 1,    "unit": "",      "icon": "mdi:thermometer",          "class": None},
 
     # --- Hub Control Registers ---
-    # CONFIRMED (2026-04-05 analysis): Hub operating mode command.
-    #   1 = Idle (no demand — 77.9% of observed time)
-    #   2 = Space Heating (19.6% — 25-95min demand bursts)
-    #   4 = DHW / Hot Water (2.5% — triggers ~3min after HW schedule ON)
-    # 33 transitions captured over 53.6h. DHW confirmed by exact alignment
-    # with Octopus HW schedule binary sensor (delay 169-175s, 2 events).
+    # CONFIRMED (DHW demand state — promoted 2026-06-19):
+    # Hub demand-state register. The earlier "4 = normal/standby" reading was
+    # WRONG: 4 is the ACTIVE hot-water state, not standby.
+    # Value map (1/2/4):
+    #   1 = idle (no demand)                                — CONFIRMED
+    #   4 = hot water active                                — CONFIRMED
+    #   2 = non-idle, non-HW demand (space-heat candidate)  — UNCONFIRMED
+    #       Leave annotated; do NOT classify until a reg 92 = 2 window is
+    #       captured alongside a known space-heating call (see follow-up).
+    # Evidence:
+    #   - Cross-validated against the Octopus Kraken WATER-zone heatDemand /
+    #     relaySwitchedOn signal (INSTRUCTION-351 / QSH). Reg 92 transitions to
+    #     4 coincident with API hot_water_active=True, holds for the cycle
+    #     envelope, and reverts to 1 on completion.
+    #   - Time-series confirmation (history-6.csv, 18 Jun 2026): 1 → 4 at
+    #     23:01:50Z, held ~39 min, → 1 at 23:40:35Z.
     # During DHW, reg_91 ramps from WC setpoint (38-42°C) to 65°C.
-    92: {"name": "Mode Demand",           "scale": 1,    "unit": "",      "icon": "mdi:thermostat",           "class": None},
+    # A derived `hot_water_active` boolean (reg 92 == 4) is published as a
+    # separate binary_sensor (see _send_hw_active_discovery / publish_registers).
+    # The raw numeric register is still published unchanged alongside it.
+    92: {"name": "DHW Demand State",      "scale": 1,    "unit": "",      "icon": "mdi:thermostat",           "class": None},
     210:{"name": "Status Register",       "scale": 1,    "unit": "",      "icon": "mdi:information",          "class": None},
 
     # --- Unidentified (tracked for future analysis) ---
@@ -894,6 +907,43 @@ class MQTTPublisher:
         self.discovery_sent.add(reg_num)
         logging.debug(f"Discovery sent for reg_{reg_num}: {name}")
 
+    def _send_hw_active_discovery(self):
+        """Send MQTT discovery for the derived hot_water_active binary_sensor.
+
+        ON iff reg 92 == 4 (hot water active). Published in ADDITION to the raw
+        reg 92 sensor, never replacing it. Same availability topic + expire_after
+        as the register sensors so a sniffer/MQTT dropout marks it `unavailable`
+        rather than collapsing to a stale or false OFF.
+        """
+        key = "reg_92_hw_active"
+        if not self.client or key in self.discovery_sent:
+            return
+        payload = {
+            "name": "Cosy Hot Water Active",
+            "unique_id": "qsh_modbus_reg_92_hw_active",
+            "state_topic": f"{self.base_topic}/reg_92_hw_active/state",
+            "payload_on": "ON",
+            "payload_off": "OFF",
+            "device_class": "heat",
+            "expire_after": 60,
+            "device": {
+                "identifiers": ["qsh_modbus_sniffer"],
+                "name": "QSH Modbus Sniffer",
+                "manufacturer": "QSH",
+                "model": "Cosy 6 Passive Sniffer",
+                "sw_version": "4.7.0",
+            },
+            "availability": {
+                "topic": "qsh_modbus/status",
+            },
+        }
+        self.client.publish(
+            "homeassistant/binary_sensor/qsh_modbus/reg_92_hw_active/config",
+            json.dumps(payload), retain=True
+        )
+        self.discovery_sent.add(key)
+        logging.debug("Discovery sent for reg_92_hw_active (hot_water_active)")
+
     def publish_registers(self, values: dict, coils: dict, state: str):
         if not self.connected:
             return
@@ -913,6 +963,19 @@ class MQTTPublisher:
 
             state_topic = f"{self.base_topic}/reg_{reg_num}/state"
             self.client.publish(state_topic, str(val), retain=True)
+
+            # Derived hot_water_active boolean, published alongside (not
+            # instead of) the raw reg 92 sensor. Only emitted when reg 92 is
+            # present; absence is left to expire_after / availability rather
+            # than publishing a stale OFF.
+            # Explicit `== 4`: value 2 (non-idle, non-HW) must read OFF, not ON.
+            # Never use `!= 1`.
+            if reg_num == 92:
+                self._send_hw_active_discovery()
+                hw_active = "ON" if raw_val == 4 else "OFF"
+                self.client.publish(
+                    f"{self.base_topic}/reg_92_hw_active/state", hw_active, retain=True
+                )
 
         # Publish coils
         for coil, value in coils.items():
