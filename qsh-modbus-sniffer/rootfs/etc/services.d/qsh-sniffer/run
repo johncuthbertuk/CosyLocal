@@ -28,6 +28,8 @@ if bashio::var.is_empty "${MQTT_HOST}"; then
     fi
 fi
 
+APP_VERSION=$(bashio::app.version)
+
 # Export for Python script
 export GATEWAY_HOST
 export GATEWAY_PORT
@@ -37,6 +39,7 @@ export MQTT_USER
 export MQTT_PASS
 export PUBLISH_INTERVAL
 export LOG_DIR="/config"
+export APP_VERSION
 
 if bashio::var.true "${DEBUG}"; then
     export DEBUG="true"
