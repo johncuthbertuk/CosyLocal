@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.9.0 - 2026-07-26
+
+### Support for suggested display precision for sensors
+
+Enable support for setting suggested display precision for sensors
+Set `compressor frequency` and `flow rate` suggested display precision as `2`
+
+### Housekeeping
+
+Dynamically configure `sw_version` to match app version
+
 ## 4.8.0 — 2026-06-19
 
 ### Reg 92 — promoted to CONFIRMED DHW demand state
