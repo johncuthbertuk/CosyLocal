@@ -209,7 +209,7 @@ REGISTER_NAMES = {
     # Previously Reported COP but unlikely to be provided via Cosy
     50: {"name": "Suction",          "scale": 0.01, "unit": "bar",      "icon": "mdi:gauge",                "class": "pressure"},
     # CONFIRMED: Cross-validated with HP installer page during DHW cycle
-    52: {"name": "Fan Suction",           "scale": 0.01, "unit": "Pa",    "icon": "mdi:gauge",                "class": "pressure"},
+    52: {"name": "Fan Suction",           "scale": 1, "unit": "Pa",    "icon": "mdi:gauge",                "class": "pressure"},
     
     # --- Flow Rate ---
     # NAMED: Second sniffer matched to "Flow Rate" from HP installer page.
