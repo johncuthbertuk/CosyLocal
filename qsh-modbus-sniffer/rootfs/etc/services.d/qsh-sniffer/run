@@ -37,8 +37,6 @@ export MQTT_USER
 export MQTT_PASS
 export PUBLISH_INTERVAL
 export LOG_DIR="/config"
-# TODO: Retrieve this via bashio app version
-export APP_VERSION="4.9.0"
 
 if bashio::var.true "${DEBUG}"; then
     export DEBUG="true"
