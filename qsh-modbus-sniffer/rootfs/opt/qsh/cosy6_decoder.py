@@ -205,15 +205,9 @@ REGISTER_NAMES = {
     # 13 bar → 35.1°C (matches condenser inlet R29). 5 bar → 4.8°C (matches
     # equalized evaporator R55). Closed.
     48: {"name": "Discharge Pressure",   "scale": 0.01, "unit": "bar",   "icon": "mdi:gauge-full",           "class": "pressure"},
-    # STATISTICAL (identified.md + 2026-04-05 analysis): Reported COP.
-    # Raw range 236-635 at scale ×0.01 = 2.36-6.35 (unitless ratio).
-    # identified.md: mean 4.23, negative correlation with flow temp (higher
-    # lift → lower COP). Cross-validated: reg_64/reg_27 implied COP ≈ 3.94,
-    # Δ = 7% from reg_50 — within measurement uncertainty.
-    # 2026-04-05: inversely correlated with power/heat output. Mode means:
-    # idle 52.9 (/100=5.3), heating 35.6 (/100=3.6), DHW 32.0 (/100=3.2).
-    # Higher COP at idle is physically expected (no lift, residual circulation).
-    50: {"name": "Reported COP",          "scale": 0.01, "unit": "",      "icon": "mdi:gauge",                "class": None},
+    # CONFIRMED: Cross-validated with HP installer page during DWH cycle.
+    # Previously Reported COP but unlikely to be provided via Cosy
+    50: {"name": "Suction",          "scale": 0.01, "unit": "bar",      "icon": "mdi:gauge",                "class": "pressure"},
     # CONFIRMED: Cross-validated with HP installer page during DHW cycle
     52: {"name": "Fan Suction",           "scale": 0.01, "unit": "Pa",    "icon": "mdi:gauge",                "class": "pressure"},
     

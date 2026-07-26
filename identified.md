@@ -24,7 +24,7 @@ analysis.
 | 40 | System Return Temp | ×0.1 | °C | 16.9 – 52.8 | CONFIRMED | Tracks Shelly return within −0.4°C during stable flow. Actual system return water temp (EWT). AP mode label: "T5 Return Temp" |
 | 45 | Discharge Gas Temp | ×0.1 | °C | 17.3 – 84.1 | CONFIRMED | Only register reaching >60°C; r=0.922 vs flow temp; mean 7.6°C above condensing temp. AP mode label: "T10 Discharge" |
 | 47 | Flow Rate | ×0.01 | l/min | — | NAMED | Sika VVX20 flow meter built into unit |
-| 50 | Reported COP | ×0.01 | — | 2.75 – 5.97 | STATISTICAL | Mean 4.23 consistent with live COP; negative correlation with flow temp confirms higher lift → lower COP. Previously labelled "Suction Pressure" |
+| 50 | Suction | ×0.01 | — | 2.75 – 5.97 | CONFIRMED | Cross-checked with HP installer page labelled: "Suction (bar). Previously labelled "Reported COP" |
 | 51 | Compressor Speed | ×1 | % | 0 – 100 | STATISTICAL | Exact 0–100 range; correlates with compressor frequency |
 | 52 | Fan Suction | ×0.01 | Pa | - | CONFIRMED | Cross-check with HP installer page labelled: "Fan suction (Pa)" |
 | 53 | Compressor Frequency | ×0.1 | Hz | 0 – 60 | STATISTICAL | Raw 0–600 = 0–60 Hz; r=0.708 vs compressor speed % |
