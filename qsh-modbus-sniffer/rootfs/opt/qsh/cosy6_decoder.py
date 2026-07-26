@@ -68,7 +68,7 @@ DEFAULT_CONFIG = {
     "publish_interval": 5,
     "socket_timeout": 2.0,
     "recv_timeout": 30,
-    "app_version": "1.0.0",
+    "app_version": "unknown",
 }
 
 FUNCTION_CODES = {
@@ -114,7 +114,7 @@ REGISTER_NAMES = {
     # Scale ×0.1 confirmed by physics: raw 323-338 → 32.3-33.8 Hz (scroll compressor 20-80 Hz range).
     # Second sniffer matched from HP installer page display "Compressor Speed".
     # Second sniffer value 324 Hz during active SH — consistent with Stuart's data.
-    19: {"name": "Compressor Frequency",  "scale": 0.1,  "unit": "Hz",    "icon": "mdi:sine-wave",            "class": "frequency", "display_precision": 2},
+    19: {"name": "Compressor Frequency",  "scale": 0.1,  "unit": "Hz",    "icon": "mdi:sine-wave",            "class": "frequency", "display_precision": 1},
 
     # --- Temperatures (raw × 0.1 = °C) ---
     # NAMED: Originally labelled "flow_temp" by second sniffer but DISPROVEN
@@ -903,7 +903,7 @@ class MQTTPublisher:
         if device_class:
             config_payload["device_class"] = device_class
             config_payload["state_class"] = "measurement"
-        if display_precision:
+        if display_precision is not None:
             config_payload["suggested_display_precision"] = display_precision
 
         config_topic = f"homeassistant/sensor/qsh_modbus/reg_{reg_num}/config"
