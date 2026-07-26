@@ -9,7 +9,8 @@ Set `compressor frequency` and `flow rate` suggested display precision as `2`
 
 ### Housekeeping
 
-Dynamically configure `sw_version` to match app version
+Bump base image to alpine3.24
+Configure `sw_version` external app version
 
 ## 4.8.0 — 2026-06-19
 
