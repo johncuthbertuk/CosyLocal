@@ -1149,7 +1149,7 @@ class ModbusSniffer:
     def run(self):
         self.running = True
         logging.info("=" * 60)
-        logging.info("QSH MODBUS SNIFFER v4 — HA ADD-ON")
+        logging.info(f"QSH MODBUS SNIFFER v{self.config['app_version']} — HA ADD-ON")
         logging.info(f"  Gateway: {self.config['gateway_host']}:{self.config['gateway_port']}")
         logging.info(f"  Slave: {self.config['slave_address']}")
         logging.info(f"  Log dir: {self.config['log_dir']}")
