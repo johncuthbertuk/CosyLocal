@@ -160,12 +160,11 @@ REGISTER_NAMES = {
     # Previously misnamed "Condenser Mid Temp" — regs 29/30 are the actual
     # condenser (refrigerant) sensors. This is the water side.
     44: {"name": "T9 Flow Temp",          "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-water",    "class": "temperature"},
-    # CONFIRMED: DHW cylinder temp. During active DHW cycle (2026-02-18
-    # 06:30-08:21), read 52.4°C rising to 54.4°C toward 55°C setpoint.
-    # Range 22-82°C spans ambient (off) through DHW boost temperatures.
+    # CONFIRMED: Compressor discharge gas temp. Matches HP installer page.
+    # Previously misnamed "DHW Cylinder Temp" - not available via Modbus
     # Previously misnamed "Compressor Shell Temp" — reg 56 is the actual
     # discharge temp (40.8°C), confirming this is NOT a compressor sensor.
-    45: {"name": "DHW Cylinder Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
+    45: {"name": "Discharge Gas Temp",     "scale": 0.1,  "unit": "°C",    "icon": "mdi:thermometer-high",     "class": "temperature"},
     # CONFIRMED (defrost validated, R290 cross-check): Primary frost signal.
     # Steady state 5.8-7.8°C. Drops to 0°C at defrost trigger.
     # Spikes to 37-55°C during hot gas defrost, decays as ice melts.
