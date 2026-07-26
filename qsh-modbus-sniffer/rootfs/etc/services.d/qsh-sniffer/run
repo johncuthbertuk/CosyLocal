@@ -28,7 +28,7 @@ if bashio::var.is_empty "${MQTT_HOST}"; then
     fi
 fi
 
-APP_VERSION=$(bashio::app.version)
+APP_VERSION=$(bashio::app.version 'self')
 
 # Export for Python script
 export GATEWAY_HOST
