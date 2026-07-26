@@ -214,7 +214,9 @@ REGISTER_NAMES = {
     # idle 52.9 (/100=5.3), heating 35.6 (/100=3.6), DHW 32.0 (/100=3.2).
     # Higher COP at idle is physically expected (no lift, residual circulation).
     50: {"name": "Reported COP",          "scale": 0.01, "unit": "",      "icon": "mdi:gauge",                "class": None},
-
+    # CONFIRMED: Cross-validated with HP installer page during DHW cycle
+    52: {"name": "Fan Suction",           "scale": 0.01, "unit": "Pa",    "icon": "mdi:gauge",                "class": "pressure"},
+    
     # --- Flow Rate ---
     # NAMED: Second sniffer matched to "Flow Rate" from HP installer page.
     # Value 1714. Units unclear — if ×0.01 = 17.14 l/min.

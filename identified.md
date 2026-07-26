@@ -26,6 +26,7 @@ analysis.
 | 47 | Flow Rate | ×0.01 | l/min | — | NAMED | Sika VVX20 flow meter built into unit |
 | 50 | Reported COP | ×0.01 | — | 2.75 – 5.97 | STATISTICAL | Mean 4.23 consistent with live COP; negative correlation with flow temp confirms higher lift → lower COP. Previously labelled "Suction Pressure" |
 | 51 | Compressor Speed | ×1 | % | 0 – 100 | STATISTICAL | Exact 0–100 range; correlates with compressor frequency |
+| 52 | Fan Suction | ×0.01 | Pa | - | CONFIRMED | Cross-check with HP installer page labelled: "Fan suction (Pa)" |
 | 53 | Compressor Frequency | ×0.1 | Hz | 0 – 60 | STATISTICAL | Raw 0–600 = 0–60 Hz; r=0.708 vs compressor speed % |
 | 64 | Heat Output | ×1 (signed Int16) | W | Observed: −8,870 to +6,745 (AdamLC 24h, 13 Apr 2026). Theoretical Int16: ±32,767 | CONFIRMED | r=0.999 vs flow×ΔT thermal calculation (heating, original identified.md analysis). Signed interpretation confirmed by two installations 13 Apr 2026: AdamLC defrost peaks −8,276 W / −8,870 W (raw 57,260 / 56,666); Stu startup transients −4 to −893 W. R48 phases during defrost validate reverse-cycle physics (3.85 bar equalized at entry, ~16 bar at peak-negative R64). |
 | 66 | Operating Mode | ×1 | enum | 0 – 3 | STATISTICAL | Discrete values 0/1/2/3 — likely Off / Heating / DHW / Defrost. Requires operational confirmation |
